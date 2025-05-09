@@ -68,6 +68,16 @@ export default function ClanSelectionScreen() {
     
     try {
       setIsLoading(true);
+      
+      // Update the user's profile with the selected clan
+      const { error } = await supabase
+        .from('profiles')
+        .update({ clan_id: selectedClanId })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      // Update local state through context
       await updateUserClan(selectedClanId);
     } catch (error) {
       console.error('Error updating clan:', error);
