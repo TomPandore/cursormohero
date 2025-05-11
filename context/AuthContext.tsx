@@ -36,31 +36,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', currentUser.id)
-          .single();
+          .maybeSingle();
 
-        if (!profile) {
+        if (error) {
+          console.error('Error fetching profile:', error);
           setIsLoading(false);
           return;
         }
 
-        const progress = profile.progress as { totalCompletedDays: number };
-        const userData: User = {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          clanId: profile.clan_id,
-          totalDaysCompleted: progress?.totalCompletedDays || 0,
-        };
-        setUser(userData);
+        // If no profile exists, create one
+        if (!profile) {
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: currentUser.id,
+              email: currentUser.email,
+              progress: { totalCompletedDays: 0 },
+            })
+            .select('*')
+            .maybeSingle();
 
-        if (!profile.clan_id) {
-          router.replace('/(auth)/onboarding/clan');
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            setIsLoading(false);
+            return;
+          }
+
+          if (newProfile) {
+            const userData: User = {
+              id: newProfile.id,
+              name: newProfile.name,
+              email: newProfile.email,
+              clanId: null,
+              totalDaysCompleted: 0,
+            };
+            setUser(userData);
+            router.replace('/(auth)/onboarding/clan');
+          }
         } else {
-          router.replace('/(app)/(tabs)/totem');
+          const progress = profile.progress as { totalCompletedDays: number };
+          const userData: User = {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            clanId: profile.clan_id,
+            totalDaysCompleted: progress?.totalCompletedDays || 0,
+          };
+          setUser(userData);
+
+          if (!profile.clan_id) {
+            router.replace('/(auth)/onboarding/clan');
+          } else {
+            router.replace('/(app)/(tabs)/totem');
+          }
         }
       } catch (error) {
         console.error('Failed to load user:', error);
@@ -126,29 +158,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
-      if (!profile) throw new Error('Profile not found');
+      if (profileError) throw profileError;
 
-      const progress = profile.progress as { totalCompletedDays: number };
-      const userData: User = {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        clanId: profile.clan_id,
-        totalDaysCompleted: progress?.totalCompletedDays || 0,
-      };
+      if (!profile) {
+        // Create profile if it doesn't exist
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: data.user.email,
+            progress: { totalCompletedDays: 0 },
+          })
+          .select('*')
+          .maybeSingle();
 
-      setUser(userData);
+        if (createError) throw createError;
+        if (!newProfile) throw new Error('Failed to create profile');
 
-      if (!profile.clan_id) {
+        const userData: User = {
+          id: newProfile.id,
+          name: newProfile.name,
+          email: newProfile.email,
+          clanId: null,
+          totalDaysCompleted: 0,
+        };
+        setUser(userData);
         router.replace('/(auth)/onboarding/clan');
       } else {
-        router.replace('/(app)/(tabs)/totem');
+        const progress = profile.progress as { totalCompletedDays: number };
+        const userData: User = {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          clanId: profile.clan_id,
+          totalDaysCompleted: progress?.totalCompletedDays || 0,
+        };
+        setUser(userData);
+
+        if (!profile.clan_id) {
+          router.replace('/(auth)/onboarding/clan');
+        } else {
+          router.replace('/(app)/(tabs)/totem');
+        }
       }
     } catch (error) {
       console.error('Sign in failed:', error);
