@@ -67,13 +67,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Fetch the user profile using maybeSingle() to handle cases where profile doesn't exist
-        const { data: profile } = await supabase
+        let { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.data.session.user.id)
           .maybeSingle();
 
-        // If no profile exists, set loading to false and return early
+        // If no profile exists, create it
+        if (!profile) {
+          console.log('Création du profil manquant...');
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: session.data.session.user.id,
+              name: session.data.session.user.user_metadata?.name || 'Utilisateur',
+              email: session.data.session.user.email || '',
+              progress: { totalCompletedDays: 0 }
+            });
+          
+          if (profileError) {
+            console.error('Erreur lors de la création du profil:', profileError);
+            throw profileError;
+          }
+          
+          // Recharger le profil
+          const { data: newProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.data.session.user.id)
+            .single();
+            
+          profile = newProfile;
+        }
+
+        // If still no profile exists, set loading to false and return early
         if (!profile) {
           setIsLoading(false);
           return;
@@ -167,6 +194,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
 
       if (authData.user) {
+        // Créer le profil utilisateur
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            name: name,
+            email: email,
+            progress: { totalCompletedDays: 0 }
+          });
+        
+        if (profileError) {
+          console.error('Erreur lors de la création du profil:', profileError);
+          throw profileError;
+        }
+
         const userData: User = {
           id: authData.user.id,
           name: name,

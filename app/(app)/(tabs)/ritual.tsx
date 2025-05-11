@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -20,17 +20,18 @@ import Animated, {
   withSequence, 
   withTiming 
 } from 'react-native-reanimated';
+import { DailyRitual, Exercise } from '@/types';
 
 export default function DailyRitualScreen() {
   const { 
     currentProgram, 
-    userPrograms, 
+    userPrograms,
+    currentRitual,
     getCurrentDayRitual, 
     updateExerciseProgress,
-    completeDay,
   } = useProgram();
   
-  const ritual = getCurrentDayRitual();
+  const [isLoading, setIsLoading] = useState(true);
   const pulseValue = useSharedValue(1);
   
   useEffect(() => {
@@ -43,6 +44,15 @@ export default function DailyRitualScreen() {
       true
     );
   }, []);
+  
+  useEffect(() => {
+    const fetchRitual = async () => {
+      setIsLoading(true);
+      await getCurrentDayRitual();
+      setIsLoading(false);
+    };
+    fetchRitual();
+  }, [currentProgram, userPrograms]);
   
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -66,7 +76,15 @@ export default function DailyRitualScreen() {
     );
   }
   
-  if (!ritual) {
+  if (isLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>Chargement du rituel...</Text>
+      </View>
+    );
+  }
+  
+  if (!currentRitual) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Programme terminé !</Text>
@@ -87,20 +105,16 @@ export default function DailyRitualScreen() {
   const dayProgress = userProgram ? `JOUR ${userProgram.currentDay} / ${currentProgram.duration}` : '';
   
   const calculateDailyProgress = () => {
-    if (!ritual) return 0;
-    
-    const totalReps = ritual.exercises.reduce((acc, ex) => acc + ex.targetReps, 0);
-    const completedReps = ritual.exercises.reduce((acc, ex) => acc + ex.completedReps, 0);
-    
-    return completedReps / totalReps;
+    if (!currentRitual) return 0;
+    const totalReps = currentRitual.exercises.reduce((acc: number, ex: Exercise) => acc + ex.targetReps, 0);
+    const completedReps = currentRitual.exercises.reduce((acc: number, ex: Exercise) => acc + Math.min(ex.completedReps, ex.targetReps), 0);
+    // Limiter à 1 (100%) maximum
+    return Math.min(totalReps > 0 ? completedReps / totalReps : 0, 1);
   };
   
   const isRitualComplete = () => {
-    return calculateDailyProgress() === 1;
-  };
-  
-  const handleCompleteDay = () => {
-    completeDay();
+    if (!currentRitual) return false;
+    return currentRitual.exercises.every(ex => ex.completedReps >= ex.targetReps);
   };
   
   return (
@@ -112,7 +126,7 @@ export default function DailyRitualScreen() {
       </View>
       
       <Animated.View style={[styles.quoteContainer, animatedStyle]}>
-        <Text style={styles.quote}>"{ritual.quote}"</Text>
+        <Text style={styles.quote}>"{currentRitual.quote}"</Text>
       </Animated.View>
       
       <View style={styles.progressContainer}>
@@ -122,7 +136,7 @@ export default function DailyRitualScreen() {
       
       <Text style={styles.exercisesTitle}>EXERCICES DU JOUR</Text>
       
-      {ritual.exercises.map((exercise) => (
+      {currentRitual.exercises.map((exercise: Exercise) => (
         <ExerciseCard
           key={exercise.id}
           exercise={exercise}
@@ -132,14 +146,10 @@ export default function DailyRitualScreen() {
       
       {isRitualComplete() && (
         <View style={styles.completeContainer}>
+          <Text style={styles.completeTitle}>Félicitations !</Text>
           <Text style={styles.completeText}>
-            Félicitations ! Vous avez complété tous les exercices du jour.
+            Vous avez complété tous les exercices du jour. Revenez demain pour continuer votre progression !
           </Text>
-          <Button
-            title="Terminer le jour"
-            onPress={handleCompleteDay}
-            style={styles.completeButton}
-          />
         </View>
       )}
     </ScrollView>
@@ -228,14 +238,18 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     marginTop: SPACING.xl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.success,
+  },
+  completeTitle: {
+    ...FONTS.heading,
+    color: COLORS.success,
+    marginBottom: SPACING.sm,
+    fontSize: 20,
   },
   completeText: {
     ...FONTS.body,
     color: COLORS.text,
     textAlign: 'center',
-    marginBottom: SPACING.lg,
-  },
-  completeButton: {
-    minWidth: 200,
   },
 });

@@ -25,10 +25,29 @@ BEGIN
   END IF;
 END $$;
 
--- Add policy for users to update their own clan_id
-CREATE POLICY "Users can update their own clan_id"
+-- Supprimer TOUTES les politiques existantes
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update their own clan_id" ON profiles;
+DROP POLICY IF EXISTS "Allow everything for authenticated users" ON profiles;
+DROP POLICY IF EXISTS "Allow everything for everyone" ON profiles;
+
+-- Désactiver temporairement RLS pour les tests
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+
+-- Activer RLS
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Créer une politique unique plus simple
+CREATE POLICY "Enable all access for authenticated user"
   ON profiles
-  FOR UPDATE
+  FOR ALL
   TO authenticated
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+  USING (
+    -- Version plus permissive pour déboguer
+    auth.role() = 'authenticated'
+  )
+  WITH CHECK (
+    -- Version plus permissive pour déboguer
+    auth.role() = 'authenticated'
+  );

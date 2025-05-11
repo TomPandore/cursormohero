@@ -8,12 +8,14 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Alert
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
 import { FONTS, SPACING } from '@/constants/Layout';
 import ProgramCard from '@/components/ProgramCard';
 import { supabase } from '@/lib/supabase';
+import { useProgram } from '@/context/ProgramContext';
 
 // Type brut depuis Supabase
 interface Program {
@@ -50,22 +52,30 @@ export default function PathsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
-
+  const { currentProgram, selectProgram } = useProgram();
+  
   useEffect(() => {
     fetchPrograms();
+    
+    // Log détaillé du programme courant
+    console.log('Programme courant au chargement:', JSON.stringify(currentProgram));
   }, []);
 
   const fetchPrograms = async () => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      console.log('Récupération des programmes depuis Supabase...');
+      console.log('Programme courant:', currentProgram);
 
       const { data, error } = await supabase
-        .db.from('programmes')
+        .from('programmes')
         .select('*');
 
       if (error) throw error;
-
+      
+      console.log('Programmes récupérés:', data);
       setPrograms(data || []);
     } catch (err) {
       console.error('Error fetching programs:', err);
@@ -82,12 +92,25 @@ export default function PathsScreen() {
   const premiumPrograms = programs
     .filter(p => p.type === 'Premium')
     .map(toCardModel);
+    
+  console.log('Programme courant dans le rendu:', currentProgram?.id);
 
-  const handleProgramPress = (programId: string) => {
-    router.push({
-      pathname: '/(app)/program/[id]',
-      params: { id: programId }
-    });
+  const handleProgramPress = async (programId: string) => {
+    try {
+      console.log('Programme sélectionné:', programId);
+      
+      // Notification à l'utilisateur
+      Alert.alert('Programme sélectionné', 'Vous avez choisi un nouveau programme');
+      
+      // Mettre à jour le contexte
+      await selectProgram(programId);
+      
+      // Naviguer vers le rituel
+      router.replace('/(app)/(tabs)/ritual');
+    } catch (error) {
+      console.error('Erreur lors de la sélection du programme:', error);
+      Alert.alert('Erreur', 'Impossible de sélectionner ce programme');
+    }
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -95,6 +118,12 @@ export default function PathsScreen() {
     const viewSize = event.nativeEvent.layoutMeasurement.width;
     const selectedIndex = Math.floor(contentOffset / viewSize);
     setActiveIndex(selectedIndex);
+  };
+
+  // Fonction pour vérifier si un programme est sélectionné
+  const isProgramSelected = (programId: string): boolean => {
+    if (!currentProgram) return false;
+    return String(currentProgram.id) === String(programId);
   };
 
   if (isLoading) {
@@ -125,6 +154,11 @@ export default function PathsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Debug info */}
+      <Text style={{color: 'white'}}>
+        Programme courant: {currentProgram ? currentProgram.id : 'aucun'}
+      </Text>
+      
       <View style={styles.header}>
         <Text style={styles.title}>LES VOIES</Text>
         <Text style={styles.subtitle}>Choisissez votre parcours de transformation</Text>
@@ -145,14 +179,20 @@ export default function PathsScreen() {
           scrollEventThrottle={16}
           pagingEnabled
         >
-          {discoveryPrograms.map(program => (
-            <View key={program.id} style={styles.cardContainer}>
-              <ProgramCard
-                program={program}
-                onPress={handleProgramPress}
-              />
-            </View>
-          ))}
+          {discoveryPrograms.map(program => {
+            const isSelected = isProgramSelected(program.id);
+            console.log(`Programme ${program.title} (${program.id}) sélectionné: ${isSelected}`);
+            
+            return (
+              <View key={program.id} style={styles.cardContainer}>
+                <ProgramCard
+                  program={program}
+                  onPress={handleProgramPress}
+                  isSelected={isSelected}
+                />
+              </View>
+            );
+          })}
         </ScrollView>
 
         <View style={styles.paginationContainer}>
@@ -174,13 +214,19 @@ export default function PathsScreen() {
           Programme complet de transformation physique et mentale.
         </Text>
 
-        {premiumPrograms.map(program => (
-          <ProgramCard
-            key={program.id}
-            program={program}
-            onPress={handleProgramPress}
-          />
-        ))}
+        {premiumPrograms.map(program => {
+          const isSelected = isProgramSelected(program.id);
+          console.log(`Programme ${program.title} (${program.id}) sélectionné: ${isSelected}`);
+          
+          return (
+            <ProgramCard
+              key={program.id}
+              program={program}
+              onPress={handleProgramPress}
+              isSelected={isSelected}
+            />
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -188,8 +234,13 @@ export default function PathsScreen() {
 
 // 🔁 Conversion Supabase → ProgramCardModel
 function toCardModel(program: Program): ProgramCardModel {
+  console.log('Conversion programme:', typeof program.id, JSON.stringify(program.id), program.nom);
+  
+  // S'assurer que l'ID est une chaîne de caractères
+  const programId = String(program.id);
+  
   return {
-    id: program.id,
+    id: programId,
     title: program.nom,
     description: program.description,
     imageUrl: program.image_url,

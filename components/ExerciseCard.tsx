@@ -12,7 +12,7 @@ import { WebView } from 'react-native-webview';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import ProgressBar from './ProgressBar';
-import { Play, X } from 'lucide-react-native';
+import { Play, X, Check } from 'lucide-react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -29,11 +29,19 @@ interface ExerciseCardProps {
 
 export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCardProps) {
   const [showVideo, setShowVideo] = useState(false);
-  const progress = exercise.completedReps / exercise.targetReps;
+  const progress = exercise.targetReps > 0 ? exercise.completedReps / exercise.targetReps : 0;
+  const isCompleted = exercise.completedReps >= exercise.targetReps;
   const scale = useSharedValue(1);
   
   const addReps = (amount: number) => {
-    onUpdateProgress(exercise.id, amount);
+    // Ne pas dépasser le nombre de répétitions cibles
+    const remaining = exercise.targetReps - exercise.completedReps;
+    if (remaining <= 0) return; // Déjà complété
+    
+    // Limiter l'ajout au nombre restant
+    const repsToAdd = Math.min(amount, remaining);
+    
+    onUpdateProgress(exercise.id, repsToAdd);
     
     // Animation
     scale.value = withSequence(
@@ -49,7 +57,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
   });
   
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
+    <Animated.View style={[styles.container, animatedStyle, isCompleted && styles.completedContainer]}>
       <View style={styles.content}>
         <View style={styles.imageContainer}>
           <Image 
@@ -57,12 +65,20 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
             style={styles.image} 
             resizeMode="cover"
           />
-          <TouchableOpacity 
-            style={styles.videoButton}
-            onPress={() => setShowVideo(true)}
-          >
-            <Play color={COLORS.text} size={20} />
-          </TouchableOpacity>
+          {exercise.videoUrl && (
+            <TouchableOpacity 
+              style={styles.videoButton}
+              onPress={() => setShowVideo(true)}
+            >
+              <Play color={COLORS.text} size={20} />
+            </TouchableOpacity>
+          )}
+          
+          {isCompleted && (
+            <View style={styles.completedBadge}>
+              <Check color={COLORS.text} size={20} />
+            </View>
+          )}
         </View>
         
         <View style={styles.detailsContainer}>
@@ -76,28 +92,36 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
             <ProgressBar progress={progress} height={8} />
           </View>
           
-          <View style={styles.buttonsContainer}>
-            <Pressable 
-              style={styles.repButton}
-              onPress={() => addReps(1)}
-            >
-              <Text style={styles.repButtonText}>+1</Text>
-            </Pressable>
-            
-            <Pressable 
-              style={styles.repButton}
-              onPress={() => addReps(5)}
-            >
-              <Text style={styles.repButtonText}>+5</Text>
-            </Pressable>
-            
-            <Pressable 
-              style={styles.repButton}
-              onPress={() => addReps(10)}
-            >
-              <Text style={styles.repButtonText}>+10</Text>
-            </Pressable>
-          </View>
+          {!isCompleted && (
+            <View style={styles.buttonsContainer}>
+              <Pressable 
+                style={styles.repButton}
+                onPress={() => addReps(1)}
+              >
+                <Text style={styles.repButtonText}>+1</Text>
+              </Pressable>
+              
+              <Pressable 
+                style={styles.repButton}
+                onPress={() => addReps(5)}
+              >
+                <Text style={styles.repButtonText}>+5</Text>
+              </Pressable>
+              
+              <Pressable 
+                style={styles.repButton}
+                onPress={() => addReps(10)}
+              >
+                <Text style={styles.repButtonText}>+10</Text>
+              </Pressable>
+            </View>
+          )}
+          
+          {isCompleted && (
+            <View style={styles.completedTextContainer}>
+              <Text style={styles.completedText}>Exercice terminé !</Text>
+            </View>
+          )}
         </View>
       </View>
       
@@ -119,7 +143,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           </View>
           
           <WebView 
-            source={{ uri: exercise.videoUrl }}
+            source={{ uri: exercise.videoUrl || 'about:blank' }}
             style={styles.webView}
             javaScriptEnabled={true}
             domStorageEnabled={true}
@@ -138,6 +162,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     overflow: 'hidden',
   },
+  completedContainer: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.success,
+  },
   content: {
     flexDirection: 'row',
   },
@@ -155,6 +184,14 @@ const styles = StyleSheet.create({
     bottom: SPACING.xs,
     right: SPACING.xs,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: BORDER_RADIUS.round,
+    padding: SPACING.xs,
+  },
+  completedBadge: {
+    position: 'absolute',
+    top: SPACING.xs,
+    right: SPACING.xs,
+    backgroundColor: COLORS.success,
     borderRadius: BORDER_RADIUS.round,
     padding: SPACING.xs,
   },
@@ -195,6 +232,15 @@ const styles = StyleSheet.create({
   repButtonText: {
     ...FONTS.button,
     color: COLORS.text,
+    fontSize: 14,
+  },
+  completedTextContainer: {
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+  },
+  completedText: {
+    ...FONTS.button,
+    color: COLORS.success,
     fontSize: 14,
   },
   modalContainer: {
