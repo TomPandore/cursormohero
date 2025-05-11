@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,9 +19,29 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const { signUp, isLoading } = useAuth();
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    } else {
+      setIsButtonDisabled(false);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [countdown]);
+
   const handleSignup = async () => {
+    if (isButtonDisabled) {
+      return;
+    }
+
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Veuillez remplir tous les champs');
       return;
@@ -38,10 +58,16 @@ export default function SignupScreen() {
     }
 
     try {
+      setIsButtonDisabled(true);
+      setCountdown(18);
       await signUp(name.trim(), email.trim(), password.trim());
       router.push('/(auth)/onboarding/clan');
     } catch (err) {
-      setError('Une erreur est survenue lors de l\'inscription');
+      if (err instanceof Error && err.message.includes('rate limit')) {
+        setError('Veuillez patienter quelques secondes avant de réessayer');
+      } else {
+        setError('Une erreur est survenue lors de l\'inscription');
+      }
     }
   };
 
@@ -101,9 +127,10 @@ export default function SignupScreen() {
           </View>
 
           <Button
-            title="Continuer"
+            title={isButtonDisabled ? `Patienter (${countdown}s)` : 'Continuer'}
             onPress={handleSignup}
             isLoading={isLoading}
+            disabled={isButtonDisabled}
             fullWidth
             style={styles.button}
           />
