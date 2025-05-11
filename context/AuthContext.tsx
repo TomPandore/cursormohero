@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
 
-      // Create the auth user first
+      // First check if the user already exists in Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -156,32 +156,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user data returned');
 
-      // Create the profile using the service role client to bypass RLS
-      const { data: profile, error: profileError } = await supabase.db
+      // Check if a profile already exists for this user
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .insert({
-          id: authData.user.id,
-          name,
-          email,
-          progress: { totalCompletedDays: 0 },
-          jour_actuel: 1
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Clean up the auth user if profile creation fails
-        await supabase.auth.signOut();
-        throw new Error('Failed to create profile');
+      let profile;
+      
+      if (!existingProfile) {
+        // Create new profile only if one doesn't exist
+        const { data: newProfile, error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            name,
+            email,
+            progress: { totalCompletedDays: 0 },
+            jour_actuel: 1
+          })
+          .select()
+          .single();
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Clean up the auth user if profile creation fails
+          await supabase.auth.signOut();
+          throw new Error('Failed to create profile');
+        }
+
+        profile = newProfile;
+      } else {
+        profile = existingProfile;
       }
 
+      // Set user data using either the existing or new profile
       const userData: User = {
         id: authData.user.id,
-        name,
-        email,
-        clanId: null,
-        totalDaysCompleted: 0,
+        name: profile.name || name,
+        email: profile.email || email,
+        clanId: profile.clan_id || null,
+        totalDaysCompleted: profile.progress?.totalCompletedDays || 0,
       };
       
       setUser(userData);
