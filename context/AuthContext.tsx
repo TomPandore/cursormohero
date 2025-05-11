@@ -29,7 +29,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadUser = async () => {
       try {
         const session = await supabase.auth.getSession();
-        
         if (!session.data.session) {
           setIsLoading(false);
           return;
@@ -55,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           totalDaysCompleted: progress?.totalCompletedDays || 0,
         };
         setUser(userData);
-        
+
         if (!profile.clan_id) {
           router.replace('/(auth)/onboarding/clan');
         } else {
@@ -74,11 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       if (data.user) {
@@ -98,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             totalDaysCompleted: progress?.totalCompletedDays || 0,
           };
           setUser(userData);
-          
+
           if (!profile.clan_id) {
             router.replace('/(auth)/onboarding/clan');
           } else {
@@ -117,46 +112,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (name: string, email: string, password: string) => {
     try {
       setIsLoading(true);
-      
-      // Create the auth user
+
+      // 1. Créer le compte
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name: name
-          }
-        }
+          data: { name },
+        },
       });
 
       if (authError) throw authError;
 
-      if (authData.user) {
-        // Create the profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            name: name,
-            email: email,
-            progress: { totalCompletedDays: 0 }
-          });
+      // 2. Attendre que la session soit active
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) throw sessionError ?? new Error("Pas de session active");
 
-        if (profileError) throw profileError;
+      const user = sessionData.session.user;
+      console.log('🔐 Création du profil pour l\'ID utilisateur :', user.id);
 
-        const userData: User = {
-          id: authData.user.id,
-          name: name,
-          email: email,
-          clanId: null,
-          totalDaysCompleted: 0,
-        };
-        
-        setUser(userData);
-        router.push('/(auth)/onboarding/clan');
-      }
+      // 3. Insérer dans la table `profiles`
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: user.id,
+        name: name,
+        email: email,
+        progress: { totalCompletedDays: 0 }
+      });
+
+      if (profileError) throw profileError;
+
+      const userData: User = {
+        id: user.id,
+        name,
+        email,
+        clanId: null,
+        totalDaysCompleted: 0,
+      };
+
+      setUser(userData);
+      router.push('/(auth)/onboarding/clan');
     } catch (error) {
-      console.error('Sign up failed:', error);
+      console.error('❌ Sign up failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -166,17 +162,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUserClan = async (clanId: string) => {
     try {
       setIsLoading(true);
-      
       if (!user) return;
-      
+
       const { error } = await supabase
         .from('profiles')
         .update({ clan_id: clanId })
         .eq('id', user.id);
-      
+
       if (error) throw error;
-      
-      setUser(prev => prev ? { ...prev, clanId } : null);
+
+      setUser((prev) => (prev ? { ...prev, clanId } : null));
       router.replace('/(app)/(tabs)/totem');
     } catch (error) {
       console.error('Failed to update clan:', error);
