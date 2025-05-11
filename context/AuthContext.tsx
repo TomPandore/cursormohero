@@ -25,7 +25,6 @@ const defaultContext: AuthContextProps = {
 
 const AuthContext = createContext<AuthContextProps>(defaultContext);
 
-// For storage in dev environment
 const STORAGE_KEY = 'user-auth';
 
 async function saveToStorage(key: string, value: string) {
@@ -148,39 +147,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      // Create the auth user
+      // First create the auth user with metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name // Store name in user metadata
+          }
+        }
       });
 
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user data returned');
 
-      // Create the profile using service role client to bypass RLS
+      // Create the profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
           id: authData.user.id,
-          name: name,
-          email: email,
+          name,
+          email,
           progress: { totalCompletedDays: 0 },
-          jour_actuel: 1,
+          jour_actuel: 1
         })
         .select()
         .single();
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
-        // If profile creation fails, attempt to delete the auth user
-        await supabase.auth.admin.deleteUser(authData.user.id);
         throw new Error('Failed to create profile');
       }
 
       const userData: User = {
         id: authData.user.id,
-        name: name,
-        email: email,
+        name,
+        email,
         clanId: null,
         totalDaysCompleted: 0,
       };
