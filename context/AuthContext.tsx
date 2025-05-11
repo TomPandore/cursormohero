@@ -1,7 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 import { User } from '@/types';
 import { supabase } from '@/lib/supabase';
 
@@ -14,42 +12,14 @@ interface AuthContextProps {
   updateUserClan: (clanId: string) => Promise<void>;
 }
 
-const defaultContext: AuthContextProps = {
+const AuthContext = createContext<AuthContextProps>({
   user: null,
   isLoading: true,
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
   updateUserClan: async () => {},
-};
-
-const AuthContext = createContext<AuthContextProps>(defaultContext);
-
-// For storage in dev environment
-const STORAGE_KEY = 'user-auth';
-
-async function saveToStorage(key: string, value: string) {
-  if (Platform.OS === 'web') {
-    localStorage.setItem(key, value);
-    return;
-  }
-  await SecureStore.setItemAsync(key, value);
-}
-
-async function getFromStorage(key: string): Promise<string | null> {
-  if (Platform.OS === 'web') {
-    return localStorage.getItem(key);
-  }
-  return await SecureStore.getItemAsync(key);
-}
-
-async function removeFromStorage(key: string) {
-  if (Platform.OS === 'web') {
-    localStorage.removeItem(key);
-    return;
-  }
-  await SecureStore.deleteItemAsync(key);
-}
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -60,20 +30,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const session = await supabase.auth.getSession();
         
-        // If no session exists, set loading to false and return early
         if (!session.data.session) {
           setIsLoading(false);
           return;
         }
 
-        // Fetch the user profile using maybeSingle() to handle cases where profile doesn't exist
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.data.session.user.id)
           .maybeSingle();
 
-        // If no profile exists, set loading to false and return early
         if (!profile) {
           setIsLoading(false);
           return;
@@ -89,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(userData);
         
-        // If user has no clan, redirect to clan selection
         if (!profile.clan_id) {
           router.replace('/(auth)/onboarding/clan');
         } else {
@@ -133,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           setUser(userData);
           
-          // If user has no clan, redirect to clan selection
           if (!profile.clan_id) {
             router.replace('/(auth)/onboarding/clan');
           } else {
@@ -167,6 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
 
       if (authData.user) {
+        // Create the profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            name: name,
+            email: email,
+            progress: { totalCompletedDays: 0 }
+          });
+
+        if (profileError) throw profileError;
+
         const userData: User = {
           id: authData.user.id,
           name: name,
