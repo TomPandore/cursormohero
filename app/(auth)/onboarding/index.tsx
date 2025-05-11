@@ -14,6 +14,8 @@ import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -47,7 +49,7 @@ export default function SignupScreen() {
       return;
     }
 
-    if (!email.includes('@')) {
+    if (!EMAIL_REGEX.test(email.trim())) {
       setError('Veuillez entrer une adresse email valide');
       return;
     }
@@ -63,11 +65,19 @@ export default function SignupScreen() {
       await signUp(name.trim(), email.trim(), password.trim());
       router.push('/(auth)/onboarding/clan');
     } catch (err) {
-      if (err instanceof Error && err.message.includes('rate limit')) {
-        setError('Veuillez patienter quelques secondes avant de réessayer');
-      } else {
-        setError('Une erreur est survenue lors de l\'inscription');
+      if (err instanceof Error) {
+        if (err.message.includes('rate limit')) {
+          setError('Veuillez patienter quelques secondes avant de réessayer');
+        } else if (err.message.includes('invalid')) {
+          setError('Adresse email invalide');
+        } else if (err.message.includes('row-level security')) {
+          setError('Erreur lors de la création du profil');
+        } else {
+          setError('Une erreur est survenue lors de l\'inscription');
+        }
       }
+      setIsButtonDisabled(false);
+      setCountdown(0);
     }
   };
 
