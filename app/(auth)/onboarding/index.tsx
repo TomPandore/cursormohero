@@ -40,9 +40,7 @@ export default function SignupScreen() {
   }, [countdown]);
 
   const handleSignup = async () => {
-    if (isButtonDisabled) {
-      return;
-    }
+    if (isButtonDisabled) return;
 
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Veuillez remplir tous les champs');
@@ -62,10 +60,14 @@ export default function SignupScreen() {
     try {
       setIsButtonDisabled(true);
       setCountdown(18);
+      console.log('🧠 Tentative de création du compte', email.trim());
+
       await signUp(name.trim(), email.trim(), password.trim());
+
       router.push('/(auth)/onboarding/clan');
     } catch (err) {
       if (err instanceof Error) {
+        console.error('❌ Sign up failed:', err);
         if (err.message.includes('rate limit')) {
           setError('Veuillez patienter quelques secondes avant de réessayer');
         } else if (err.message.includes('invalid')) {
@@ -73,7 +75,7 @@ export default function SignupScreen() {
         } else if (err.message.includes('row-level security')) {
           setError('Erreur lors de la création du profil');
         } else {
-          setError('Une erreur est survenue lors de l\'inscription');
+          setError("Une erreur est survenue lors de l'inscription");
         }
       }
       setIsButtonDisabled(false);
