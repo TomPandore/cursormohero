@@ -146,14 +146,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (name: string, email: string, password: string) => {
     try {
       setIsLoading(true);
+
+      // First check if the email already exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingUser) {
+        throw new Error('User already exists with this email');
+      }
       
-      // First create the auth user with metadata
+      // Create the auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name // Store name in user metadata
+            name
           }
         }
       });
@@ -161,7 +172,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user data returned');
 
-      // Create the profile
+      // Wait a brief moment to ensure the auth user is fully created
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Create the profile with the new auth user's ID
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -175,7 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (profileError) {
-        console.error('Error creating profile:', profileError);
+        // If profile creation fails, clean up the auth user
+        await supabase.auth.signOut();
         throw new Error('Failed to create profile');
       }
 
