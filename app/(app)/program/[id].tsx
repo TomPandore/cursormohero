@@ -71,10 +71,6 @@ export default function ProgramDetailScreen() {
               <Text style={styles.title}>{program.title}</Text>
               
               <View style={styles.detailsRow}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{program.duration} jours</Text>
-                </View>
-                
                 {program.focus.map((focus, index) => (
                   <View key={index} style={styles.badge}>
                     <Text style={styles.badgeText}>{focus}</Text>
@@ -86,10 +82,13 @@ export default function ProgramDetailScreen() {
         </ImageBackground>
         
         <View style={styles.contentContainer}>
+          <Text style={styles.durationText}>
+            Programme de <Text style={styles.durationNumber}>{program.duration}</Text> jours
+          </Text>
           <Text style={styles.description}>{program.description}</Text>
           
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>À quoi s'attendre</Text>
+            <Text style={styles.sectionTitle}>Attendez-vous à</Text>
             <View style={styles.benefitsContainer}>
               {program.details.benefits.map((benefit, index) => (
                 <View key={index} style={styles.benefitItem}>
@@ -174,7 +173,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   badge: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
@@ -255,5 +254,15 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginVertical: SPACING.lg,
+  },
+  durationText: {
+    ...FONTS.subheading,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+  },
+  durationNumber: {
+    ...FONTS.heading,
+    color: COLORS.primary,
+    fontSize: 24,
   },
 });

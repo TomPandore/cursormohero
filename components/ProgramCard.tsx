@@ -36,10 +36,6 @@ export default function ProgramCard({ program, onPress }: ProgramCardProps) {
             <Text style={styles.title}>{program.title}</Text>
             
             <View style={styles.detailsRow}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{program.duration} jours</Text>
-              </View>
-              
               {program.focus.map((focus, index) => (
                 <View key={index} style={styles.badge}>
                   <Text style={styles.badgeText}>{focus}</Text>
@@ -86,7 +82,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   badge: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,

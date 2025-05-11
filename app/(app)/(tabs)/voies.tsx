@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -31,12 +34,22 @@ interface ProgramCardModel {
   imageUrl: string;
   duration: number;
   focus: string[];
+  category: 'discovery' | 'premium';
+  details: {
+    benefits: string[];
+    phases: {
+      title: string;
+      description: string;
+    }[];
+  };
 }
 
 export default function PathsScreen() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     fetchPrograms();
@@ -75,6 +88,13 @@ export default function PathsScreen() {
       pathname: '/(app)/program/[id]',
       params: { id: programId }
     });
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const contentOffset = event.nativeEvent.contentOffset.x;
+    const viewSize = event.nativeEvent.layoutMeasurement.width;
+    const selectedIndex = Math.floor(contentOffset / viewSize);
+    setActiveIndex(selectedIndex);
   };
 
   if (isLoading) {
@@ -116,13 +136,36 @@ export default function PathsScreen() {
           Programmes courts pour explorer les fondamentaux du mouvement ancestral.
         </Text>
 
-        {discoveryPrograms.map(program => (
-          <ProgramCard
-            key={program.id}
-            program={program}
-            onPress={handleProgramPress}
-          />
-        ))}
+        <ScrollView 
+          ref={scrollViewRef}
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.carouselContainer}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          pagingEnabled
+        >
+          {discoveryPrograms.map(program => (
+            <View key={program.id} style={styles.cardContainer}>
+              <ProgramCard
+                program={program}
+                onPress={handleProgramPress}
+              />
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.paginationContainer}>
+          {discoveryPrograms.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.paginationDot,
+                index === activeIndex && styles.paginationDotActive
+              ]}
+            />
+          ))}
+        </View>
       </View>
 
       <View style={styles.sectionContainer}>
@@ -152,6 +195,11 @@ function toCardModel(program: Program): ProgramCardModel {
     imageUrl: program.image_url,
     duration: program.duree_jours,
     focus: program.tags || [],
+    category: program.type === 'Découverte' ? 'discovery' : 'premium',
+    details: {
+      benefits: [],
+      phases: []
+    }
   };
 }
 
@@ -162,6 +210,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: SPACING.lg,
+    paddingTop: SPACING.xl * 2,
   },
   centerContainer: {
     flex: 1,
@@ -205,5 +254,31 @@ const styles = StyleSheet.create({
     ...FONTS.body,
     color: COLORS.textSecondary,
     textAlign: 'center',
+  },
+  carouselContainer: {
+    paddingRight: SPACING.lg,
+  },
+  cardContainer: {
+    width: Dimensions.get('window').width - SPACING.lg * 2,
+    marginRight: SPACING.md,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: COLORS.primary,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 });

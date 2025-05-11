@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: SPACING.lg,
+    paddingTop: SPACING.xl * 2,
   },
   header: {
     marginBottom: SPACING.lg,

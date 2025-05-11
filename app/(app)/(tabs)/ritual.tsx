@@ -153,6 +153,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: SPACING.lg,
+    paddingTop: SPACING.xl * 2,
   },
   emptyContainer: {
     flex: 1,

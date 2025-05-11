@@ -19,14 +19,11 @@ export default function WelcomeScreen() {
 
   return (
     <ImageBackground
-      source={require('@/assets/background-home.png')}
+      source={require('@/assets/background-home-v2.png')}
       style={styles.background}
       resizeMode="cover"
     >
-          <LinearGradient
-        colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.5)']}
-        style={StyleSheet.absoluteFill}
-      />
+         
 
       <View style={styles.container}>
         <View style={styles.content}>

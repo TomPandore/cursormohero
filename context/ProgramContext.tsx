@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Program, DailyRitual, UserProgram } from '@/types';
-import { mockPrograms, mockDailyRituals } from '@/data/mockData';
+import { supabase } from '@/lib/supabase';
 
 interface ProgramContextProps {
   programs: Program[];
@@ -38,23 +38,47 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // In a real app, fetch from an API
-        setPrograms(mockPrograms);
-        setDailyRituals(mockDailyRituals);
+        setIsLoading(true);
         
-        // Set a default current program for demo
-        const defaultProgram = mockPrograms.find(p => p.id === 'crocodile-tide');
-        setCurrentProgram(defaultProgram || null);
+        // Fetch programs from Supabase
+        const { data: programsData, error: programsError } = await supabase
+          .from('programmes')
+          .select(`
+            *,
+            resultats,
+            parcours_resume
+          `);
+
+        if (programsError) throw programsError;
+
+        console.log('Données brutes de Supabase:', JSON.stringify(programsData, null, 2));
+
+        // Convert Supabase data to Program type
+        const formattedPrograms: Program[] = programsData.map(p => {
+          console.log('Programme:', p.nom);
+          console.log('Résultats:', p.resultats);
+          console.log('Parcours resume:', p.parcours_resume);
+          return {
+            id: p.id,
+            title: p.nom,
+            description: p.description,
+            duration: p.duree_jours,
+            category: p.type === 'Découverte' ? 'discovery' : 'premium',
+            focus: p.tags || [],
+            imageUrl: p.image_url,
+            details: {
+              benefits: p.resultats || [],
+              phases: p.parcours_resume?.map((phase: { titre: string; texte: string; sous_titre: string }) => ({
+                title: phase.titre,
+                description: `${phase.texte}\n${phase.sous_titre}`
+              })) || []
+            }
+          };
+        });
+
+        setPrograms(formattedPrograms);
+        setUserPrograms([]); // Pour l'instant, on initialise avec un tableau vide
         
-        // Set a mock user program for demonstration
-        setUserPrograms([
-          {
-            programId: 'crocodile-tide',
-            startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-            currentDay: 3,
-            completed: false,
-          }
-        ]);
       } catch (error) {
         console.error('Failed to load programs:', error);
       } finally {

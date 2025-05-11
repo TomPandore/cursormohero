@@ -155,6 +155,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: SPACING.lg,
+    paddingTop: SPACING.xl * 2,
   },
   header: {
     backgroundColor: COLORS.card,
