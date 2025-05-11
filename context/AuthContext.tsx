@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('profiles')
           .select('*')
           .eq('id', currentUser.id)
-          .maybeSingle();
+          .single();
 
         if (!profile) {
           setIsLoading(false);
@@ -76,18 +76,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
 
-      const { error: authError } = await supabase.auth.signUp({
+      // 1. Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { name },
-        },
       });
 
       if (authError) throw authError;
+      if (!authData.user) throw new Error('No user returned after signup');
 
-      // Rediriger vers une page de confirmation
-      router.replace('/(auth)/email-confirm');
+      // 2. Create profile
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        name,
+        email,
+        progress: { totalCompletedDays: 0 },
+      });
+
+      if (profileError) throw profileError;
+
+      // Set user data
+      const userData: User = {
+        id: authData.user.id,
+        name,
+        email,
+        clanId: null,
+        totalDaysCompleted: 0,
+      };
+      setUser(userData);
+
+      // Navigate to clan selection
+      router.replace('/(auth)/onboarding/clan');
     } catch (error) {
       console.error('❌ Sign up failed:', error);
       throw error;
@@ -107,48 +126,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      const connectedUser = data.user;
-      if (!connectedUser) throw new Error('User not returned');
-
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', connectedUser.id)
-        .maybeSingle();
+        .eq('id', data.user.id)
+        .single();
 
-      if (!profile) {
-        // Créer un profil maintenant que la session est active (auth.uid() OK)
-        const { error: insertError } = await supabase.from('profiles').insert({
-          id: connectedUser.id,
-          name: connectedUser.user_metadata.name,
-          email: connectedUser.email,
-          progress: { totalCompletedDays: 0 },
-        });
+      if (!profile) throw new Error('Profile not found');
 
-        if (insertError) throw insertError;
-      }
-
-      // Recharger le profil après insert
-      const { data: finalProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', connectedUser.id)
-        .maybeSingle();
-
-      if (!finalProfile) throw new Error('Profil manquant après création');
-
-      const progress = finalProfile.progress as { totalCompletedDays: number };
+      const progress = profile.progress as { totalCompletedDays: number };
       const userData: User = {
-        id: finalProfile.id,
-        name: finalProfile.name,
-        email: finalProfile.email,
-        clanId: finalProfile.clan_id,
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        clanId: profile.clan_id,
         totalDaysCompleted: progress?.totalCompletedDays || 0,
       };
 
       setUser(userData);
 
-      if (!finalProfile.clan_id) {
+      if (!profile.clan_id) {
         router.replace('/(auth)/onboarding/clan');
       } else {
         router.replace('/(app)/(tabs)/totem');
@@ -158,6 +155,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error('Sign out failed:', error);
     }
   };
 
@@ -180,16 +187,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      router.replace('/(auth)/login');
-    } catch (error) {
-      console.error('Sign out failed:', error);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,65 +21,31 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const { signUp, isLoading } = useAuth();
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-    } else {
-      setIsButtonDisabled(false);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [countdown]);
-
   const handleSignup = async () => {
-    if (isButtonDisabled) return;
-
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('Veuillez remplir tous les champs');
-      return;
-    }
-
-    if (!EMAIL_REGEX.test(email.trim())) {
-      setError('Veuillez entrer une adresse email valide');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
-      return;
-    }
-
     try {
-      setIsButtonDisabled(true);
-      setCountdown(18);
-      console.log('🧠 Tentative de création du compte', email.trim());
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        setError('Veuillez remplir tous les champs');
+        return;
+      }
+
+      if (!EMAIL_REGEX.test(email.trim())) {
+        setError('Veuillez entrer une adresse email valide');
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
 
       await signUp(name.trim(), email.trim(), password.trim());
-
-      router.push('/(auth)/onboarding/clan');
     } catch (err) {
       if (err instanceof Error) {
         console.error('❌ Sign up failed:', err);
-        if (err.message.includes('rate limit')) {
-          setError('Veuillez patienter quelques secondes avant de réessayer');
-        } else if (err.message.includes('invalid')) {
-          setError('Adresse email invalide');
-        } else if (err.message.includes('row-level security')) {
-          setError('Erreur lors de la création du profil');
-        } else {
-          setError("Une erreur est survenue lors de l'inscription");
-        }
+        setError("Une erreur est survenue lors de l'inscription");
       }
-      setIsButtonDisabled(false);
-      setCountdown(0);
     }
   };
 
@@ -139,10 +105,9 @@ export default function SignupScreen() {
           </View>
 
           <Button
-            title={isButtonDisabled ? `Patienter (${countdown}s)` : 'Continuer'}
+            title="Continuer"
             onPress={handleSignup}
             isLoading={isLoading}
-            disabled={isButtonDisabled}
             fullWidth
             style={styles.button}
           />
