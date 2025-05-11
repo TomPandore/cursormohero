@@ -60,20 +60,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const session = await supabase.auth.getSession();
         
-        // If no session exists, set loading to false and return early
         if (!session.data.session) {
           setIsLoading(false);
           return;
         }
 
-        // Fetch the user profile using maybeSingle() to handle cases where profile doesn't exist
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.data.session.user.id)
           .maybeSingle();
 
-        // If no profile exists, set loading to false and return early
         if (!profile) {
           setIsLoading(false);
           return;
@@ -89,7 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         setUser(userData);
         
-        // If user has no clan, redirect to clan selection
         if (!profile.clan_id) {
           router.replace('/(auth)/onboarding/clan');
         } else {
@@ -133,7 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           setUser(userData);
           
-          // If user has no clan, redirect to clan selection
           if (!profile.clan_id) {
             router.replace('/(auth)/onboarding/clan');
           } else {
@@ -157,27 +152,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            name: name
-          }
-        }
       });
 
       if (authError) throw authError;
+      if (!authData.user) throw new Error('No user data returned');
 
-      if (authData.user) {
-        const userData: User = {
+      // Create the profile using service role client to bypass RLS
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
           id: authData.user.id,
           name: name,
           email: email,
-          clanId: null,
-          totalDaysCompleted: 0,
-        };
-        
-        setUser(userData);
-        router.push('/(auth)/onboarding/clan');
+          progress: { totalCompletedDays: 0 },
+          jour_actuel: 1,
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        // If profile creation fails, attempt to delete the auth user
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw new Error('Failed to create profile');
       }
+
+      const userData: User = {
+        id: authData.user.id,
+        name: name,
+        email: email,
+        clanId: null,
+        totalDaysCompleted: 0,
+      };
+      
+      setUser(userData);
+      router.push('/(auth)/onboarding/clan');
     } catch (error) {
       console.error('Sign up failed:', error);
       throw error;
