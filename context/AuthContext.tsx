@@ -29,7 +29,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadUser = async () => {
       try {
         const session = await supabase.auth.getSession();
-        if (!session.data.session) {
+        const currentUser = session.data.session?.user;
+
+        if (!currentUser) {
           setIsLoading(false);
           return;
         }
@@ -37,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.data.session.user.id)
+          .eq('id', currentUser.id)
           .maybeSingle();
 
         if (!profile) {
@@ -70,51 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
-        if (profile) {
-          const progress = profile.progress as { totalCompletedDays: number };
-          const userData: User = {
-            id: profile.id,
-            name: profile.name,
-            email: profile.email,
-            clanId: profile.clan_id,
-            totalDaysCompleted: progress?.totalCompletedDays || 0,
-          };
-          setUser(userData);
-
-          if (!profile.clan_id) {
-            router.replace('/(auth)/onboarding/clan');
-          } else {
-            router.replace('/(app)/(tabs)/totem');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Sign in failed:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const signUp = async (name: string, email: string, password: string) => {
     try {
       setIsLoading(true);
 
-      // 1. Créer le compte
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -124,35 +86,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (authError) throw authError;
 
-      // 2. Attendre que la session soit active
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) throw sessionError ?? new Error("Pas de session active");
+      // Rediriger vers une page de confirmation
+      router.replace('/(auth)/email-confirm');
+    } catch (error) {
+      console.error('❌ Sign up failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      const user = sessionData.session.user;
-      console.log('🔐 Création du profil pour l\'ID utilisateur :', user.id);
+  const signIn = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
 
-      // 3. Insérer dans la table `profiles`
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: user.id,
-        name: name,
-        email: email,
-        progress: { totalCompletedDays: 0 }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      if (profileError) throw profileError;
+      if (error) throw error;
 
+      const connectedUser = data.user;
+      if (!connectedUser) throw new Error('User not returned');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', connectedUser.id)
+        .maybeSingle();
+
+      if (!profile) {
+        // Créer un profil maintenant que la session est active (auth.uid() OK)
+        const { error: insertError } = await supabase.from('profiles').insert({
+          id: connectedUser.id,
+          name: connectedUser.user_metadata.name,
+          email: connectedUser.email,
+          progress: { totalCompletedDays: 0 },
+        });
+
+        if (insertError) throw insertError;
+      }
+
+      // Recharger le profil après insert
+      const { data: finalProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', connectedUser.id)
+        .maybeSingle();
+
+      if (!finalProfile) throw new Error('Profil manquant après création');
+
+      const progress = finalProfile.progress as { totalCompletedDays: number };
       const userData: User = {
-        id: user.id,
-        name,
-        email,
-        clanId: null,
-        totalDaysCompleted: 0,
+        id: finalProfile.id,
+        name: finalProfile.name,
+        email: finalProfile.email,
+        clanId: finalProfile.clan_id,
+        totalDaysCompleted: progress?.totalCompletedDays || 0,
       };
 
       setUser(userData);
-      router.push('/(auth)/onboarding/clan');
+
+      if (!finalProfile.clan_id) {
+        router.replace('/(auth)/onboarding/clan');
+      } else {
+        router.replace('/(app)/(tabs)/totem');
+      }
     } catch (error) {
-      console.error('❌ Sign up failed:', error);
+      console.error('Sign in failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
