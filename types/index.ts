@@ -48,4 +48,5 @@ export interface UserProgram {
   startDate: Date;
   currentDay: number;
   completed: boolean;
+  lastUpdated: Date;
 }

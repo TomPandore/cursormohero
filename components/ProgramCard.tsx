@@ -19,9 +19,6 @@ interface ProgramCardProps {
 }
 
 export default function ProgramCard({ program, onPress, isSelected = false }: ProgramCardProps) {
-  // Debug log pour vérifier si le programme est sélectionné
-  console.log(`Rendu ProgramCard ${program.title} - sélectionné: ${isSelected}`);
-  
   return (
     <TouchableOpacity 
       style={[

@@ -4,7 +4,10 @@ import {
   Text, 
   View, 
   ScrollView,
-  TouchableOpacity
+  TouchableOpacity,
+  Image,
+  Alert,
+  ImageBackground
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -62,10 +65,16 @@ export default function DailyRitualScreen() {
   
   if (!currentProgram) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>Aucun programme en cours</Text>
-        <Text style={styles.emptyText}>
-          Choisissez un programme pour commencer votre voyage.
+      <View style={styles.noProgramContainer}>
+        <View style={styles.mentorWrapper}>
+          <Image 
+            source={require('@/assets/mentor-mohero.png')} 
+            style={styles.mentorImageLarge}
+            resizeMode="cover"
+          />
+        </View>
+        <Text style={styles.mentorMessage}>
+          Tu n'as pour le moment commencé aucun chemin
         </Text>
         <Button
           title="Découvrir les programmes"
@@ -126,7 +135,16 @@ export default function DailyRitualScreen() {
       </View>
       
       <Animated.View style={[styles.quoteContainer, animatedStyle]}>
-        <Text style={styles.quote}>"{currentRitual.quote}"</Text>
+        <View style={styles.quoteContent}>
+          <Image 
+            source={require('@/assets/mentor-mohero.png')} 
+            style={styles.mentorImage}
+            resizeMode="contain"
+          />
+          <View style={styles.quoteTextContainer}>
+            <Text style={styles.quote}>"{currentRitual.quote}"</Text>
+          </View>
+        </View>
       </Animated.View>
       
       <View style={styles.progressContainer}>
@@ -165,11 +183,39 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     paddingTop: SPACING.xl * 2,
   },
+  noProgramContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  mentorWrapper: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: COLORS.primary,
+    marginBottom: SPACING.xl,
+  },
+  mentorImageLarge: {
+    width: '100%',
+    height: '100%',
+  },
+  mentorMessage: {
+    ...FONTS.heading,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    fontSize: 22,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.xl,
+    backgroundColor: COLORS.background,
   },
   emptyTitle: {
     ...FONTS.heading,
@@ -207,8 +253,23 @@ const styles = StyleSheet.create({
   quoteContainer: {
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.lg,
+    padding: SPACING.md,
     marginBottom: SPACING.lg,
+  },
+  quoteContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mentorImage: {
+    width: 80,
+    height: 80,
+    marginRight: SPACING.md,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  quoteTextContainer: {
+    flex: 1,
   },
   quote: {
     ...FONTS.body,
@@ -216,7 +277,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rajdhani-Medium',
     fontSize: 16,
     fontStyle: 'italic',
-    textAlign: 'center',
+    marginBottom: SPACING.xs,
   },
   progressContainer: {
     marginBottom: SPACING.xl,

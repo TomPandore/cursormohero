@@ -5,7 +5,8 @@ import {
   View, 
   ScrollView, 
   ImageBackground, 
-  TouchableOpacity 
+  TouchableOpacity,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,8 +38,36 @@ export default function ProgramDetailScreen() {
   const isProgramSelected = userPrograms.some(up => up.programId === program.id);
   
   const handleSelectProgram = async () => {
-    await selectProgram(program.id);
-    router.replace('/(app)/(tabs)/ritual');
+    if (isProgramSelected) {
+      router.replace('/(app)/(tabs)/ritual');
+      return;
+    }
+    
+    const hasOtherActiveProgram = userPrograms.length > 0 && !isProgramSelected;
+    
+    if (hasOtherActiveProgram) {
+      Alert.alert(
+        "Changer de programme ?",
+        "Attention : Commencer ce nouveau programme effacera toute progression sur votre programme actuel. Souhaitez-vous continuer ?",
+        [
+          {
+            text: "Annuler",
+            style: "cancel"
+          },
+          {
+            text: "Confirmer",
+            onPress: async () => {
+              await selectProgram(program.id);
+              router.replace('/(app)/(tabs)/ritual');
+            }
+          }
+        ],
+        { cancelable: true }
+      );
+    } else {
+      await selectProgram(program.id);
+      router.replace('/(app)/(tabs)/ritual');
+    }
   };
   
   return (

@@ -194,31 +194,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Créer le profil utilisateur
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
+        try {
+          // Vérifier d'abord si un profil existe déjà pour cet utilisateur
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+            
+          // Si le profil existe déjà, on l'utilise directement
+          if (existingProfile) {
+            console.log('Profil existant trouvé, utilisation de celui-ci');
+            
+            const progress = existingProfile.progress as { totalCompletedDays: number };
+            const userData: User = {
+              id: existingProfile.id,
+              name: existingProfile.name,
+              email: existingProfile.email,
+              clanId: existingProfile.clan_id,
+              totalDaysCompleted: progress?.totalCompletedDays || 0,
+            };
+            
+            setUser(userData);
+            
+            // Si l'utilisateur n'a pas de clan, rediriger vers la sélection de clan
+            if (!existingProfile.clan_id) {
+              router.push('/(auth)/onboarding/clan');
+            } else {
+              router.replace('/(app)/(tabs)/totem');
+            }
+            
+            return;
+          }
+          
+          // Si aucun profil n'existe, en créer un nouveau
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              name: name,
+              email: email,
+              progress: { totalCompletedDays: 0 }
+            });
+          
+          if (profileError) {
+            console.error('Erreur lors de la création du profil:', profileError);
+            throw profileError;
+          }
+
+          const userData: User = {
             id: authData.user.id,
             name: name,
             email: email,
-            progress: { totalCompletedDays: 0 }
-          });
-        
-        if (profileError) {
-          console.error('Erreur lors de la création du profil:', profileError);
+            clanId: null,
+            totalDaysCompleted: 0,
+          };
+          
+          setUser(userData);
+          router.push('/(auth)/onboarding/clan');
+        } catch (profileError) {
+          // Si l'erreur est une violation de contrainte d'unicité, essayer de récupérer l'utilisateur existant
+          if ((profileError as any)?.code === '23505') {
+            console.log('Tentative de récupération du profil existant après erreur de duplication');
+            
+            const { data: existingUser } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('email', email)
+              .maybeSingle();
+              
+            if (existingUser) {
+              const progress = existingUser.progress as { totalCompletedDays: number };
+              const userData: User = {
+                id: existingUser.id,
+                name: existingUser.name,
+                email: existingUser.email,
+                clanId: existingUser.clan_id,
+                totalDaysCompleted: progress?.totalCompletedDays || 0,
+              };
+              
+              setUser(userData);
+              
+              if (!existingUser.clan_id) {
+                router.push('/(auth)/onboarding/clan');
+              } else {
+                router.replace('/(app)/(tabs)/totem');
+              }
+              return;
+            }
+          }
+          
+          // Si l'erreur n'est pas de duplication ou si la récupération a échoué, relancer l'erreur
           throw profileError;
         }
-
-        const userData: User = {
-          id: authData.user.id,
-          name: name,
-          email: email,
-          clanId: null,
-          totalDaysCompleted: 0,
-        };
-        
-        setUser(userData);
-        router.push('/(auth)/onboarding/clan');
       }
     } catch (error) {
       console.error('Sign up failed:', error);

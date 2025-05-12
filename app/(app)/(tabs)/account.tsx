@@ -8,40 +8,165 @@ import {
   Image,
   Alert,
   Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView
 } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
-import { Settings, User, LogOut, Award, CreditCard as Edit } from 'lucide-react-native';
+import { Settings, User, LogOut, Award, CreditCard as Edit, X, Trash, AlertTriangle } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 export default function AccountScreen() {
   const { user, signOut } = useAuth();
   const [clanName, setClanName] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
+  const [localUserData, setLocalUserData] = useState(user);
+  const [clanId, setClanId] = useState('');
   
   useEffect(() => {
     if (user?.clanId) {
+      console.log('User clanId detected:', user.clanId);
       fetchClanName();
+      // We'll set clanId in fetchClanName to ensure we get the right format
     }
-  }, [user?.clanId]);
+    
+    // Initialize edit fields and local user data with current values
+    if (user) {
+      setEditName(user.name);
+      setEditEmail(user.email);
+      setLocalUserData(user);
+    }
+  }, [user?.clanId, user]);
 
   const fetchClanName = async () => {
     try {
+      if (!user?.clanId) {
+        console.log('No clan ID available');
+        return;
+      }
+      
+      console.log('Fetching clan details for ID:', user.clanId);
       const { data, error } = await supabase
         .from('clans')
-        .select('nom_clan')
-        .eq('id', user?.clanId)
+        .select('id, nom_clan')
+        .eq('id', user.clanId)
         .single();
 
-      if (error) throw error;
-      if (data) setClanName(data.nom_clan);
+      if (error) {
+        console.error('Error fetching clan:', error);
+        throw error;
+      }
+      
+      if (data) {
+        console.log('Clan data retrieved:', data);
+        setClanName(data.nom_clan);
+        // Set clan ID with the value from the database to ensure it's the correct type/format
+        setClanId(data.id);
+      }
     } catch (error) {
       console.error('Error fetching clan name:', error);
     }
   };
   
-  if (!user) return null;
+  // Function to get the avatar URL based on clan name
+  const getAvatarUrl = () => {
+    console.log('Getting avatar for clan name:', clanName);
+    
+    // Return default avatar if no clan name is available
+    if (!clanName) {
+      console.log('No clan name available, using default avatar');
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png';
+    }
+    
+    if (clanName.toUpperCase().includes('ONOTKA')) {
+      console.log('Using Onotka avatar');
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-onotka.png';
+    } else if (clanName.toUpperCase().includes('EKLOA')) {
+      console.log('Using Ekloa avatar');
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-ekloa.png';
+    } else if (clanName.toUpperCase().includes('OKWÁHO') || clanName.toUpperCase().includes('OKWAHO')) {
+      console.log('Using Okwaho avatar');
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-okwadho.png';
+    } else {
+      console.log('Using default avatar, clan name not matched:', clanName);
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png';
+    }
+  };
+  
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    
+    if (!editName.trim()) {
+      setUpdateError('Le nom ne peut pas être vide');
+      return;
+    }
+    
+    if (!editEmail.trim() || !editEmail.includes('@')) {
+      setUpdateError('Adresse email invalide');
+      return;
+    }
+    
+    try {
+      setIsUpdating(true);
+      setUpdateError('');
+      
+      // Update the profile in the database
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: editName,
+          email: editEmail
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      // Update auth for email change if needed, but don't wait for it
+      // This will take effect on next login but won't disrupt current session
+      if (user.email !== editEmail) {
+        supabase.auth.updateUser({
+          email: editEmail,
+        }).then(({ error }) => {
+          if (error) {
+            console.error('Email update in auth will apply on next login:', error);
+          }
+        });
+      }
+      
+      // Update local state instead of reloading
+      setLocalUserData(prev => {
+        if (prev) {
+          return {
+            ...prev,
+            name: editName,
+            email: editEmail
+          };
+        }
+        return prev;
+      });
+      
+      // Show success message
+      Alert.alert('Profil mis à jour', 'Vos informations ont été mises à jour avec succès.');
+      
+      // Close modal
+      setModalVisible(false);
+      
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setUpdateError('Erreur lors de la mise à jour du profil');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  if (!localUserData) return null;
   
   const handleSignOut = () => {
     if (Platform.OS === 'web') {
@@ -67,7 +192,7 @@ export default function AccountScreen() {
         <View style={styles.profileHeader}>
           <View style={styles.profileImageContainer}>
             <Image 
-              source={{ uri: 'https://images.pexels.com/photos/7674497/pexels-photo-7674497.jpeg' }}
+              source={{ uri: getAvatarUrl() }}
               style={styles.profileImage}
             />
             <TouchableOpacity style={styles.editButton}>
@@ -76,26 +201,9 @@ export default function AccountScreen() {
           </View>
           
           <View style={styles.profileInfo}>
-            <Text style={styles.userName}>{user.name}</Text>
+            <Text style={styles.userName}>{localUserData.name}</Text>
             <Text style={styles.userClan}>Clan {clanName}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{user.totalDaysCompleted}</Text>
-            <Text style={styles.statLabel}>Jours</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>1</Text>
-            <Text style={styles.statLabel}>Programmes</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Badges</Text>
+            <Text style={styles.userEmail}>{localUserData.email}</Text>
           </View>
         </View>
       </View>
@@ -103,19 +211,14 @@ export default function AccountScreen() {
       <View style={styles.menuSection}>
         <Text style={styles.sectionTitle}>PARAMÈTRES</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => setModalVisible(true)}>
           <User size={20} color={COLORS.textSecondary} />
-          <Text style={styles.menuItemText}>Profil</Text>
+          <Text style={styles.menuItemText}>Modifier le profil</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.menuItem}>
-          <Settings size={20} color={COLORS.textSecondary} />
-          <Text style={styles.menuItemText}>Paramètres de l'application</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.menuItem}>
-          <Award size={20} color={COLORS.textSecondary} />
-          <Text style={styles.menuItemText}>Mes accomplissements</Text>
+        <TouchableOpacity style={styles.deleteAccountItem}>
+          <Trash size={20} color={COLORS.error} />
+          <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
         </TouchableOpacity>
       </View>
       
@@ -131,7 +234,15 @@ export default function AccountScreen() {
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Politique de confidentialité</Text>
+          <Text style={styles.menuItemText}>Confidentialité & Mentions légales</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.menuItem}>
+          <Text style={styles.menuItemText}>Remerciements</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.menuItem}>
+          <Text style={styles.menuItemText}>Aides & Assistance</Text>
         </TouchableOpacity>
       </View>
       
@@ -143,7 +254,81 @@ export default function AccountScreen() {
         style={styles.logoutButton}
       />
       
+      <View style={styles.logoContainer}>
+        <Image 
+          source={require('@/assets/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+      </View>
+      
       <Text style={styles.versionText}>Version 1.0.0</Text>
+      
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Modifier le profil</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <X size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            {updateError ? (
+              <Text style={styles.errorText}>{updateError}</Text>
+            ) : null}
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Nom</Text>
+              <TextInput
+                style={styles.input}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Votre nom"
+                placeholderTextColor={COLORS.textSecondary}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Votre email"
+                placeholderTextColor={COLORS.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            
+            <View style={styles.modalActions}>
+              <Button 
+                title="Annuler" 
+                onPress={() => setModalVisible(false)}
+                variant="outline"
+                style={styles.modalButton}
+              />
+              
+              <Button 
+                title="Enregistrer" 
+                onPress={handleUpdateProfile}
+                isLoading={isUpdating}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -206,29 +391,6 @@ const styles = StyleSheet.create({
     ...FONTS.caption,
     color: COLORS.textSecondary,
   },
-  statsRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    padding: SPACING.md,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    ...FONTS.heading,
-    color: COLORS.text,
-    fontSize: 24,
-  },
-  statLabel: {
-    ...FONTS.caption,
-    color: COLORS.textSecondary,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.border,
-  },
   menuSection: {
     marginBottom: SPACING.xl,
   },
@@ -251,13 +413,94 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginLeft: SPACING.md,
   },
+  deleteAccountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 101, 101, 0.1)',
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 101, 101, 0.2)',
+  },
+  deleteAccountText: {
+    ...FONTS.body,
+    color: COLORS.error,
+    marginLeft: SPACING.md,
+  },
   logoutButton: {
-    marginVertical: SPACING.lg,
+    marginBottom: SPACING.xl,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  logoImage: {
+    width: 100,
+    height: 40,
   },
   versionText: {
     ...FONTS.caption,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
+  },
+  
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: SPACING.lg,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  modalTitle: {
+    ...FONTS.heading,
+    color: COLORS.text,
+    fontSize: 20,
+  },
+  inputContainer: {
+    marginBottom: SPACING.md,
+  },
+  inputLabel: {
+    ...FONTS.body,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  input: {
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    color: COLORS.text,
+    fontFamily: 'Inter-Regular',
+    fontSize: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.lg,
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: SPACING.xs,
+  },
+  errorText: {
+    ...FONTS.body,
+    color: COLORS.error,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
   },
 });

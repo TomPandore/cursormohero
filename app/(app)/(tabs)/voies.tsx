@@ -56,18 +56,12 @@ export default function PathsScreen() {
   
   useEffect(() => {
     fetchPrograms();
-    
-    // Log détaillé du programme courant
-    console.log('Programme courant au chargement:', JSON.stringify(currentProgram));
   }, []);
 
   const fetchPrograms = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      console.log('Récupération des programmes depuis Supabase...');
-      console.log('Programme courant:', currentProgram);
 
       const { data, error } = await supabase
         .from('programmes')
@@ -75,7 +69,6 @@ export default function PathsScreen() {
 
       if (error) throw error;
       
-      console.log('Programmes récupérés:', data);
       setPrograms(data || []);
     } catch (err) {
       console.error('Error fetching programs:', err);
@@ -92,24 +85,14 @@ export default function PathsScreen() {
   const premiumPrograms = programs
     .filter(p => p.type === 'Premium')
     .map(toCardModel);
-    
-  console.log('Programme courant dans le rendu:', currentProgram?.id);
 
   const handleProgramPress = async (programId: string) => {
     try {
-      console.log('Programme sélectionné:', programId);
-      
-      // Notification à l'utilisateur
-      Alert.alert('Programme sélectionné', 'Vous avez choisi un nouveau programme');
-      
-      // Mettre à jour le contexte
-      await selectProgram(programId);
-      
-      // Naviguer vers le rituel
-      router.replace('/(app)/(tabs)/ritual');
+      // Naviguer vers la page détaillée du programme
+      router.push(`/program/${programId}`);
     } catch (error) {
-      console.error('Erreur lors de la sélection du programme:', error);
-      Alert.alert('Erreur', 'Impossible de sélectionner ce programme');
+      console.error('Erreur lors de la navigation:', error);
+      Alert.alert('Erreur', 'Impossible d\'accéder aux détails du programme');
     }
   };
 
@@ -154,11 +137,6 @@ export default function PathsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Debug info */}
-      <Text style={{color: 'white'}}>
-        Programme courant: {currentProgram ? currentProgram.id : 'aucun'}
-      </Text>
-      
       <View style={styles.header}>
         <Text style={styles.title}>LES VOIES</Text>
         <Text style={styles.subtitle}>Choisissez votre parcours de transformation</Text>
@@ -181,7 +159,6 @@ export default function PathsScreen() {
         >
           {discoveryPrograms.map(program => {
             const isSelected = isProgramSelected(program.id);
-            console.log(`Programme ${program.title} (${program.id}) sélectionné: ${isSelected}`);
             
             return (
               <View key={program.id} style={styles.cardContainer}>
@@ -216,7 +193,6 @@ export default function PathsScreen() {
 
         {premiumPrograms.map(program => {
           const isSelected = isProgramSelected(program.id);
-          console.log(`Programme ${program.title} (${program.id}) sélectionné: ${isSelected}`);
           
           return (
             <ProgramCard
@@ -234,8 +210,6 @@ export default function PathsScreen() {
 
 // 🔁 Conversion Supabase → ProgramCardModel
 function toCardModel(program: Program): ProgramCardModel {
-  console.log('Conversion programme:', typeof program.id, JSON.stringify(program.id), program.nom);
-  
   // S'assurer que l'ID est une chaîne de caractères
   const programId = String(program.id);
   
