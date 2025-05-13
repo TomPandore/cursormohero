@@ -16,7 +16,7 @@ import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
-import { Settings, User, LogOut, Award, CreditCard as Edit, X, Trash, AlertTriangle } from 'lucide-react-native';
+import { Settings, User, LogOut, Award, CreditCard as Edit, X, Trash, AlertTriangle, ShoppingCart, Gift } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 export default function AccountScreen() {
@@ -219,6 +219,20 @@ export default function AccountScreen() {
         <TouchableOpacity style={styles.deleteAccountItem}>
           <Trash size={20} color={COLORS.error} />
           <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.menuSection}>
+        <Text style={styles.sectionTitle}>SOUTENIR MOHERO</Text>
+        
+        <TouchableOpacity style={styles.menuItem}>
+          <Gift size={20} color={COLORS.textSecondary} />
+          <Text style={styles.menuItemText}>Campagne Ulule</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.menuItem}>
+          <ShoppingCart size={20} color={COLORS.textSecondary} />
+          <Text style={styles.menuItemText}>Boutique</Text>
         </TouchableOpacity>
       </View>
       

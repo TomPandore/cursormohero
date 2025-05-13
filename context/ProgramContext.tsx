@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Program, DailyRitual, UserProgram } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
 
 interface ProgramContextProps {
   programs: Program[];
@@ -34,109 +35,201 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
   const [userPrograms, setUserPrograms] = useState<UserProgram[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentRitual, setCurrentRitual] = useState<DailyRitual | null>(null);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Récupérer l'utilisateur courant
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      let userProgrammeId = null;
+      let currentDay = 1;
+      
+      if (user) {
+        console.log('Utilisateur connecté, id:', user.id);
         
-        // Récupérer l'utilisateur courant
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
-        let userProgrammeId = null;
-        let currentDay = 1;
-        
-        if (user) {
-          // Récupérer le profil complet pour examiner sa structure
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-            
-          console.log('Profil utilisateur complet:', profile, 'Erreur:', profileError);
+        // Récupérer le profil complet pour examiner sa structure
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
           
-          if (!profileError && profile) {
-            // Récupérer le programme_id
-            userProgrammeId = profile.programme_id;
-            console.log('programme_id du profil:', userProgrammeId);
-            
-            // Vérifier les champs de progression disponibles
-            if (profile.progress && profile.progress.currentDay) {
-              currentDay = profile.progress.currentDay;
-              console.log('Jour courant depuis progress:', currentDay);
-            }
-          }
-        } else {
-          console.log('Aucun utilisateur connecté');
-        }
+        console.log('Profil utilisateur complet:', profile, 'Erreur:', profileError);
         
-        // Fetch programs from Supabase
-        const { data: programsData, error: programsError } = await supabase
-          .from('programmes')
-          .select(`
-            *,
-            resultats,
-            parcours_resume
-          `);
+        if (!profileError && profile) {
+          // Récupérer le programme_id
+          userProgrammeId = profile.programme_id;
+          console.log('programme_id du profil:', userProgrammeId, 'Type:', typeof userProgrammeId);
+          
+          // Vérifier que programme_id est une valeur valide
+          if (!userProgrammeId) {
+            console.log('Aucun programme_id trouvé dans le profil');
+          } else {
+            // S'assurer que programme_id est une chaîne de caractères
+            userProgrammeId = String(userProgrammeId);
+            console.log('programme_id converti en string:', userProgrammeId);
+          }
+          
+          // Vérifier les champs de progression disponibles
+          if (profile.progress && profile.progress.currentDay) {
+            currentDay = profile.progress.currentDay;
+            console.log('Jour courant depuis progress:', currentDay);
+          }
+        }
+      } else {
+        console.log('Aucun utilisateur connecté');
+      }
+      
+      // Fetch programs from Supabase
+      const { data: programsData, error: programsError } = await supabase
+        .from('programmes')
+        .select(`
+          *,
+          resultats,
+          parcours_resume
+        `);
 
-        if (programsError) throw programsError;
-        console.log('Liste des programmes:', programsData);
+      if (programsError) {
+        console.error('Erreur lors de la récupération des programmes:', programsError);
+        throw programsError;
+      }
+      
+      console.log(`Nombre de programmes chargés: ${programsData?.length || 0}`);
 
-        // Convert Supabase data to Program type
-        const formattedPrograms: Program[] = programsData.map(p => {
-          console.log('Programme:', p.nom);
-          console.log('Résultats:', p.resultats);
-          console.log('Parcours resume:', p.parcours_resume);
-          return {
-            id: p.id,
-            title: p.nom,
-            description: p.description,
-            duration: p.duree_jours,
-            category: p.type === 'Découverte' ? 'discovery' : 'premium',
-            focus: p.tags || [],
-            imageUrl: p.image_url,
-            details: {
-              benefits: p.resultats || [],
-              phases: p.parcours_resume?.map((phase: { titre: string; texte: string; sous_titre: string }) => ({
-                title: phase.titre,
-                description: `${phase.texte}\n${phase.sous_titre}`
-              })) || []
-            }
-          };
-        });
+      // Convert Supabase data to Program type
+      const formattedPrograms: Program[] = programsData.map(p => {
+        return {
+          id: p.id,
+          title: p.nom,
+          description: p.description,
+          duration: p.duree_jours,
+          category: p.type === 'Découverte' ? 'discovery' : 'premium',
+          focus: p.tags || [],
+          imageUrl: p.image_url,
+          details: {
+            benefits: p.resultats || [],
+            phases: p.parcours_resume?.map((phase: { titre: string; texte: string; sous_titre: string }) => ({
+              title: phase.titre,
+              description: `${phase.texte}\n${phase.sous_titre}`
+            })) || []
+          }
+        };
+      });
 
-        setPrograms(formattedPrograms);
+      setPrograms(formattedPrograms);
 
-        // Mettre à jour le currentProgram selon le profil
-        if (userProgrammeId) {
-          const found = formattedPrograms.find(p => String(p.id) === String(userProgrammeId));
-          console.log('Programme courant trouvé:', found);
-          setCurrentProgram(found || null);
+      // Mettre à jour le currentProgram selon le profil
+      if (userProgrammeId) {
+        console.log('Recherche du programme avec ID:', userProgrammeId);
+        
+        // Comparer les IDs comme des chaînes de caractères pour éviter les problèmes de type
+        const found = formattedPrograms.find(p => String(p.id) === String(userProgrammeId));
+        
+        if (found) {
+          console.log('Programme courant trouvé:', found.title, 'ID:', found.id);
+          
+          // Mise à jour de l'état
+          setCurrentProgram(found);
           
           // Initialiser userPrograms avec le programme actuel et le jour courant récupéré
-          if (found) {
-            setUserPrograms([{
-              programId: found.id,
+          const userProgram = {
+            programId: found.id,
+            startDate: new Date(),
+            currentDay: currentDay,
+            completed: false,
+            lastUpdated: new Date()
+          };
+          
+          console.log('Initialisation de userPrograms avec:', userProgram);
+          setUserPrograms([userProgram]);
+          
+          // Précharger le rituel pour améliorer l'expérience utilisateur
+          setTimeout(() => {
+            getCurrentDayRitual();
+          }, 1000);
+        } else {
+          console.warn('Programme avec ID', userProgrammeId, 'introuvable dans la liste des programmes');
+          
+          // Vérifier si c'est un problème de format UUID vs string
+          console.log('Liste des IDs de programmes disponibles:', formattedPrograms.map(p => String(p.id)));
+          
+          // Tentative de récupération par correspondance partielle ou par recherche exacte après normalisation
+          const possibleMatch = formattedPrograms.find(p => {
+            const normalizedProgramId = String(p.id).trim().toLowerCase();
+            const normalizedUserProgramId = String(userProgrammeId).trim().toLowerCase();
+            
+            return normalizedProgramId === normalizedUserProgramId ||
+              normalizedProgramId.includes(normalizedUserProgramId) || 
+              normalizedUserProgramId.includes(normalizedProgramId);
+          });
+          
+          if (possibleMatch) {
+            console.log('Correspondance possible trouvée:', possibleMatch.title, 'ID:', possibleMatch.id);
+            setCurrentProgram(possibleMatch);
+            
+            // Initialiser userPrograms avec le programme trouvé
+            const userProgram = {
+              programId: possibleMatch.id,
               startDate: new Date(),
               currentDay: currentDay,
               completed: false,
               lastUpdated: new Date()
-            }]);
+            };
+            
+            console.log('Initialisation de userPrograms avec correspondance possible:', userProgram);
+            setUserPrograms([userProgram]);
+            
+            // Mettre à jour le profil avec l'ID correct
+            try {
+              if (user) {
+                const { error: updateError } = await supabase
+                  .from('profiles')
+                  .update({ programme_id: String(possibleMatch.id) })
+                  .eq('id', user.id);
+                  
+                if (updateError) {
+                  console.error('Erreur lors de la correction de l\'ID du programme:', updateError);
+                } else {
+                  console.log('ID du programme corrigé dans le profil');
+                }
+              } else {
+                console.warn('Impossible de corriger l\'ID: aucun utilisateur connecté');
+              }
+            } catch (e) {
+              console.error('Erreur lors de la tentative de correction de l\'ID:', e);
+            }
+          } else {
+            setCurrentProgram(null);
+            setUserPrograms([]);
           }
-        } else {
-          setCurrentProgram(null);
-          setUserPrograms([]);
         }
-      } catch (error) {
-        console.error('Failed to load programs:', error);
-      } finally {
-        setIsLoading(false);
+      } else {
+        console.log('Aucun programme sélectionné');
+        setCurrentProgram(null);
+        setUserPrograms([]);
       }
-    };
+    } catch (error) {
+      console.error('Failed to load programs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Charger les données au démarrage de l'application
+  useEffect(() => {
     loadData();
   }, []);
+
+  // Recharger les données quand l'utilisateur change
+  useEffect(() => {
+    if (user) {
+      console.log('Rechargement des données après changement d'utilisateur', user.id);
+      loadData();
+    }
+  }, [user?.id]);
 
   const selectProgram = async (programId: string) => {
     try {
@@ -160,22 +253,30 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         console.error('Programme non trouvé:', programIdString);
         throw new Error('Programme non trouvé');
       }
-      console.log('Programme trouvé:', program);
+      console.log('Programme trouvé:', program.title, 'ID:', program.id);
       
       // Date actuelle pour la mise à jour
       const now = new Date();
       const nowISOString = now.toISOString();
       
-      // Mise à jour simplifiée : uniquement programme_id d'abord
-      console.log('Tentative de mise à jour avec programme_id uniquement');
+      // Création d'un objet progress pour la mise à jour
+      const progressData = {
+        currentDay: 1,
+        lastUpdated: nowISOString,
+        completedDate: null,
+        totalCompletedDays: 0
+      };
+      
+      // Mise à jour complète avec programme_id ET progress
+      console.log('Mise à jour du profil avec programme_id et progress');
       const { data: updateData, error: updateError } = await supabase
         .from('profiles')
         .update({ 
           programme_id: programIdString,
+          progress: progressData
         })
         .eq('id', user.id)
-        .select()
-        .maybeSingle();
+        .select();
       
       if (updateError) {
         console.error('Erreur lors de la mise à jour du profil:', updateError);
@@ -184,47 +285,35 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       
       console.log('Mise à jour réussie:', updateData);
       
-      // Essayer de mettre à jour le champ progress si disponible
-      try {
-        // Vérifier d'abord la structure du profil
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        if (profile) {
-          // Détecter si le champ se nomme 'progress' plutôt que 'progression'
-          if ('progress' in profile) {
-            console.log('Tentative de mise à jour du champ progress');
-            await supabase
-              .from('profiles')
-              .update({ 
-                progress: {
-                  currentDay: 1,
-                  lastUpdated: nowISOString,
-                  completedDate: null
-                }
-              })
-              .eq('id', user.id);
-          }
-        }
-      } catch (progressError) {
-        // Ne pas échouer complètement si la mise à jour de la progression échoue
-        console.error('Erreur non critique lors de la mise à jour de progress:', progressError);
+      // Vérifier que la mise à jour a bien fonctionné
+      const { data: verifyProfile, error: verifyError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+        
+      if (verifyError) {
+        console.error('Erreur lors de la vérification du profil:', verifyError);
+      } else {
+        console.log('Profil après mise à jour:', verifyProfile);
+        console.log('Vérification programme_id:', verifyProfile.programme_id);
+        console.log('Vérification progress:', verifyProfile.progress);
       }
       
       // Mettre à jour le currentProgram localement
       setCurrentProgram(program);
       
       // Initialiser userPrograms avec le nouveau programme
-      setUserPrograms([{
+      const userProgram = {
         programId: program.id,
         startDate: now,
-        currentDay: 1,
-        completed: false,
+          currentDay: 1,
+          completed: false,
         lastUpdated: now
-      }]);
+      };
+      
+      console.log('Mise à jour de userPrograms avec:', userProgram);
+      setUserPrograms([userProgram]);
       
       // Vider le rituel courant pour forcer un rechargement
       setCurrentRitual(null);
@@ -245,7 +334,7 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
     if (!user) return null;
     const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
     if (!userProgram) return null;
-
+    
     console.log('Récupération du rituel pour le jour:', userProgram.currentDay);
 
     // Récupérer le jour courant dans la table jours
@@ -532,11 +621,31 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
 
   const completeDay = async () => {
     try {
-      if (!currentProgram || !userPrograms.length) return;
+      if (!currentProgram || !userPrograms.length) {
+        console.warn('Impossible de compléter le jour: pas de programme actif ou pas de progression utilisateur');
+        return;
+      }
       
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) return;
+      if (!user) {
+        console.warn('Impossible de compléter le jour: utilisateur non connecté');
+        return;
+      }
+      
+      // Récupérer d'abord le profil pour avoir les données actuelles
+      const { data: currentProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+        
+      if (profileError) {
+        console.error('Erreur lors de la récupération du profil:', profileError);
+        throw profileError;
+      }
+      
+      console.log('Profil actuel avant mise à jour:', currentProfile);
       
       // Trouver le programme utilisateur actuel
       const currentUserProgram = userPrograms[0];
@@ -552,29 +661,51 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       setUserPrograms([{
         ...currentUserProgram,
         currentDay: newDay,
-        completed: isCompleted,
+          completed: isCompleted,
         lastUpdated: new Date()
       }]);
       
+      // S'assurer que programme_id est correctement sauvegardé
+      const programId = currentProgram.id;
+      
       // Mettre à jour le profil dans la base de données avec le bon champ 'progress'
+      const updateData = {
+        progress: { 
+          currentDay: newDay,
+          lastUpdated: new Date().toISOString(),
+          completedDate: isCompleted ? new Date().toISOString() : null,
+          totalCompletedDays: isCompleted ? (currentProgram.duration || 0) : newDay - 1
+        },
+        // S'assurer que le programme_id est toujours présent
+        programme_id: programId
+      };
+      
+      console.log('Mise à jour du profil avec:', updateData);
+      
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ 
-          progress: { 
-            currentDay: newDay,
-            lastUpdated: new Date().toISOString(),
-            completedDate: isCompleted ? new Date().toISOString() : null,
-            totalCompletedDays: isCompleted ? (currentProgram.duration || 0) : newDay - 1
-          },
-          // S'assurer que le programme_id est toujours présent
-          programme_id: currentProgram.id
-        })
+        .update(updateData)
         .eq('id', user.id);
       
       if (updateError) {
         console.error('Erreur lors de la mise à jour de la progression:', updateError);
       } else {
         console.log('Progression sauvegardée, jour suivant:', newDay);
+        
+        // Vérifier que les données ont été correctement sauvegardées
+        const { data: verifyProfile, error: verifyError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (verifyError) {
+          console.error('Erreur lors de la vérification du profil après mise à jour:', verifyError);
+        } else {
+          console.log('Profil après mise à jour:', verifyProfile);
+          console.log('Vérification programme_id:', verifyProfile.programme_id);
+          console.log('Vérification progress:', verifyProfile.progress);
+        }
       }
       
       // Vider le rituel courant pour forcer un rechargement

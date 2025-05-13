@@ -6,6 +6,7 @@ import {
   ScrollView, 
   ImageBackground,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -16,7 +17,7 @@ import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useProgram } from '@/context/ProgramContext';
 import { supabase } from '@/lib/supabase';
-import { RefreshCw } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -96,6 +97,22 @@ export default function TotemScreen() {
     router.push('/(auth)/onboarding/clan');
   };
 
+  const getAvatarUrl = (clanName: string) => {
+    if (!clanName) {
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png';
+    }
+    
+    if (clanName.toUpperCase().includes('ONOTKA')) {
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-onotka.png';
+    } else if (clanName.toUpperCase().includes('EKLOA')) {
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-ekloa.png';
+    } else if (clanName.toUpperCase().includes('OKWÁHO') || clanName.toUpperCase().includes('OKWAHO')) {
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-okwadho.png';
+    } else {
+      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png';
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
@@ -171,18 +188,24 @@ export default function TotemScreen() {
       </View>
       
       <View style={styles.clanInfoContainer}>
-        <View style={styles.clanInfoHeader}>
-          <Text style={styles.sectionTitle}>TU ES UN {clanData.nom_clan} !</Text>
-          <TouchableOpacity 
-            style={[styles.editButton, { backgroundColor: getClanColor() }]}
-            onPress={handleChangeClan}
-          >
-            <RefreshCw size={16} color={COLORS.text} />
-          </TouchableOpacity>
+        <View style={styles.avatarContainer}>
+          <Image 
+            source={{ uri: 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png' }}
+            style={[styles.avatarImage, { borderColor: getClanColor() }]}
+          />
         </View>
         
         <View style={styles.clanInfoCard}>
+          <Text style={[styles.clanTitle, { color: getClanColor() }]}>TU ES UN {clanData.nom_clan} !</Text>
           <Text style={styles.ritualText}>{clanData.rituel_entree}</Text>
+          
+          <TouchableOpacity 
+            style={styles.changeClanLink}
+            onPress={handleChangeClan}
+          >
+            <Text style={[styles.changeClanText, { color: getClanColor() }]}>Changer de clan</Text>
+            <ChevronRight size={16} color={getClanColor()} />
+          </TouchableOpacity>
         </View>
       </View>
       
@@ -319,24 +342,56 @@ const styles = StyleSheet.create({
   },
   clanInfoContainer: {
     marginBottom: SPACING.xl,
-  },
-  clanInfoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    position: 'relative',
     alignItems: 'center',
-    marginBottom: SPACING.md,
   },
-  editButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+  avatarContainer: {
+    position: 'absolute',
+    top: 20,
+    zIndex: 10,
+    alignSelf: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
+    elevation: 6,
+    backgroundColor: COLORS.card,
+    padding: 3,
+    borderRadius: 43,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
   },
   clanInfoCard: {
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
+    paddingTop: SPACING.xl + 30,
+    marginTop: 40,
+    width: '100%',
+  },
+  clanTitle: {
+    ...FONTS.heading,
+    fontSize: 18,
+    marginBottom: SPACING.sm,
+  },
+  changeClanLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+  changeClanText: {
+    ...FONTS.button,
+    fontSize: 14,
+    marginRight: SPACING.xs,
   },
   ritualText: {
     ...FONTS.body,

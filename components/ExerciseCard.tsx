@@ -73,12 +73,6 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
               <Play color={COLORS.text} size={20} />
             </TouchableOpacity>
           )}
-          
-          {isCompleted && (
-            <View style={styles.completedBadge}>
-              <Check color={COLORS.text} size={20} />
-            </View>
-          )}
         </View>
         
         <View style={styles.detailsContainer}>
@@ -119,10 +113,16 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           
           {isCompleted && (
             <View style={styles.completedTextContainer}>
-              <Text style={styles.completedText}>Exercice terminé !</Text>
+              <Text style={styles.completedText}>Rituel terminé !</Text>
             </View>
           )}
         </View>
+        
+        {isCompleted && (
+          <View style={styles.completedBadge}>
+            <Check color={COLORS.text} size={20} />
+          </View>
+        )}
       </View>
       
       <Modal
@@ -161,11 +161,10 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
     overflow: 'hidden',
+    position: 'relative',
   },
   completedContainer: {
     backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.success,
   },
   content: {
     flexDirection: 'row',
@@ -189,11 +188,12 @@ const styles = StyleSheet.create({
   },
   completedBadge: {
     position: 'absolute',
-    top: SPACING.xs,
-    right: SPACING.xs,
+    top: SPACING.md,
+    right: SPACING.md,
     backgroundColor: COLORS.success,
     borderRadius: BORDER_RADIUS.round,
     padding: SPACING.xs,
+    zIndex: 10,
   },
   detailsContainer: {
     flex: 1,
@@ -202,7 +202,6 @@ const styles = StyleSheet.create({
   title: {
     ...FONTS.subheading,
     color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   description: {
     ...FONTS.caption,
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   completedTextContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginTop: SPACING.xs,
   },
   completedText: {

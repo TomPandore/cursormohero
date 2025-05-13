@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
 import { FONTS } from '@/constants/Layout';
-import { Chrome as Home, Compass, Dumbbell, User } from 'lucide-react-native';
+import { Mountain, Compass, Flame, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -26,7 +26,7 @@ export default function TabLayout() {
         name="totem"
         options={{
           title: 'Totem',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Mountain size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -39,8 +39,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ritual"
         options={{
-          title: 'Rituel du jour',
-          tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
+          title: 'Rituels du jour',
+          tabBarIcon: ({ color, size }) => <Flame size={size} color={color} />,
         }}
       />
       <Tabs.Screen

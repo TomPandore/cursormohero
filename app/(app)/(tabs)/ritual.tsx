@@ -126,23 +126,47 @@ export default function DailyRitualScreen() {
     return currentRitual.exercises.every(ex => ex.completedReps >= ex.targetReps);
   };
   
+  // Message dynamique du mentor en fonction de l'état des rituels
+  const getMentorMessage = () => {
+    if (isRitualComplete()) {
+      return ["Félicitations !", " Tu as terminé tous les rituels du jour. On se revoit demain."];
+    } else {
+      return currentRitual?.quote || "Commence chaque journée, comme si elle avait été écrite pour toi !";
+    }
+  };
+  
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>RITUEL DU JOUR</Text>
         <Text style={styles.programName}>{currentProgram.title}</Text>
         <Text style={styles.dayProgress}>{dayProgress}</Text>
       </View>
       
-      <Animated.View style={[styles.quoteContainer, animatedStyle]}>
+      <Animated.View 
+        style={[
+          styles.quoteContainer, 
+          animatedStyle, 
+          isRitualComplete() && styles.completedQuoteContainer
+        ]}
+      >
         <View style={styles.quoteContent}>
           <Image 
             source={require('@/assets/mentor-mohero.png')} 
-            style={styles.mentorImage}
+            style={[
+              styles.mentorImage,
+              isRitualComplete() && styles.completedMentorImage
+            ]}
             resizeMode="contain"
           />
           <View style={styles.quoteTextContainer}>
-            <Text style={styles.quote}>"{currentRitual.quote}"</Text>
+            {isRitualComplete() ? (
+              <Text style={styles.quote}>
+                <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
+                <Text>{getMentorMessage()[1]}</Text>
+              </Text>
+            ) : (
+              <Text style={styles.quote}>"{getMentorMessage()}"</Text>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -152,7 +176,7 @@ export default function DailyRitualScreen() {
         <ProgressBar progress={calculateDailyProgress()} height={12} showPercentage />
       </View>
       
-      <Text style={styles.exercisesTitle}>EXERCICES DU JOUR</Text>
+      <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
       
       {currentRitual.exercises.map((exercise: Exercise) => (
         <ExerciseCard
@@ -161,15 +185,6 @@ export default function DailyRitualScreen() {
           onUpdateProgress={updateExerciseProgress}
         />
       ))}
-      
-      {isRitualComplete() && (
-        <View style={styles.completeContainer}>
-          <Text style={styles.completeTitle}>Félicitations !</Text>
-          <Text style={styles.completeText}>
-            Vous avez complété tous les exercices du jour. Revenez demain pour continuer votre progression !
-          </Text>
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -235,15 +250,10 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: SPACING.lg,
   },
-  title: {
-    ...FONTS.heading,
-    color: COLORS.text,
-    fontSize: 24,
-    letterSpacing: 2,
-  },
   programName: {
-    ...FONTS.subheading,
+    ...FONTS.heading,
     color: COLORS.primary,
+    fontSize: 26,
     marginBottom: SPACING.xs,
   },
   dayProgress: {
@@ -255,6 +265,10 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
+  },
+  completedQuoteContainer: {
+    backgroundColor: COLORS.card,
+    borderWidth: 0,
   },
   quoteContent: {
     flexDirection: 'row',
@@ -268,6 +282,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.primary,
   },
+  completedMentorImage: {
+    borderColor: COLORS.success,
+  },
   quoteTextContainer: {
     flex: 1,
   },
@@ -278,6 +295,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: 'italic',
     marginBottom: SPACING.xs,
+  },
+  completedQuote: {
+    color: COLORS.success,
+    fontWeight: 'bold',
   },
   progressContainer: {
     marginBottom: SPACING.xl,
@@ -292,25 +313,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
     letterSpacing: 1,
-  },
-  completeContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.lg,
-    marginTop: SPACING.xl,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.success,
-  },
-  completeTitle: {
-    ...FONTS.heading,
-    color: COLORS.success,
-    marginBottom: SPACING.sm,
-    fontSize: 20,
-  },
-  completeText: {
-    ...FONTS.body,
-    color: COLORS.text,
-    textAlign: 'center',
   },
 });
