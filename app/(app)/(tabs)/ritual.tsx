@@ -52,12 +52,30 @@ export default function DailyRitualScreen() {
   
   useEffect(() => {
     const fetchRitual = async () => {
+      console.log('Tentative de récupération du rituel...');
       setIsLoading(true);
-      await getCurrentDayRitual();
-      setIsLoading(false);
+      try {
+        await getCurrentDayRitual();
+      } catch (error) {
+        console.error('Erreur lors de la récupération du rituel:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchRitual();
   }, [currentProgram, userPrograms]);
+  
+  // Log pour afficher la structure des exercices reçus
+  useEffect(() => {
+    if (currentRitual && currentRitual.exercises) {
+      console.log('Exercices reçus:', JSON.stringify(currentRitual.exercises.map(ex => ({
+        id: ex.id,
+        name: ex.name,
+        videoUrl: ex.videoUrl,
+        imageUrl: ex.imageUrl
+      })), null, 2));
+    }
+  }, [currentRitual]);
   
   // Effet pour détecter quand tous les exercices sont terminés
   useEffect(() => {
@@ -115,6 +133,14 @@ export default function DailyRitualScreen() {
     };
   });
   
+  if (isLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>Chargement du rituel...</Text>
+      </View>
+    );
+  }
+  
   if (!currentProgram) {
     return (
       <View style={styles.noProgramContainer}>
@@ -133,14 +159,6 @@ export default function DailyRitualScreen() {
           onPress={() => router.push('/(app)/(tabs)/voies')}
           style={styles.emptyButton}
         />
-      </View>
-    );
-  }
-  
-  if (isLoading) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>Chargement du rituel...</Text>
       </View>
     );
   }
@@ -262,29 +280,32 @@ export default function DailyRitualScreen() {
       
       <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
       
-      {currentRitual.exercises
-        // Trier les exercices : d'abord les non terminés, puis les terminés
-        .slice()
-        .sort((a, b) => {
-          const aCompleted = a.completedReps >= a.targetReps;
-          const bCompleted = b.completedReps >= b.targetReps;
-          
-          if (aCompleted === bCompleted) {
-            // Garder l'ordre d'origine si les deux sont terminés ou les deux sont non terminés
-            return 0;
-          }
-          
-          // Les non terminés d'abord (-1), les terminés ensuite (1)
-          return aCompleted ? 1 : -1;
-        })
-        .map((exercise: Exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            onUpdateProgress={updateExerciseProgress}
-          />
-        ))
-      }
+      {currentRitual.exercises && currentRitual.exercises.length > 0 ? (
+        currentRitual.exercises
+          // Trier les exercices : d'abord les non terminés, puis les terminés
+          .slice()
+          .sort((a, b) => {
+            const aCompleted = a.completedReps >= a.targetReps;
+            const bCompleted = b.completedReps >= b.targetReps;
+            
+            if (aCompleted === bCompleted) {
+              // Garder l'ordre d'origine si les deux sont terminés ou les deux sont non terminés
+              return 0;
+            }
+            
+            // Les non terminés d'abord (-1), les terminés ensuite (1)
+            return aCompleted ? 1 : -1;
+          })
+          .map((exercise: Exercise) => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              onUpdateProgress={updateExerciseProgress}
+            />
+          ))
+      ) : (
+        <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
+      )}
     </ScrollView>
   );
 }
@@ -420,5 +441,11 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: SPACING.xs,
     fontSize: 12,
+  },
+  noExercisesText: {
+    ...FONTS.body,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.md,
   },
 });

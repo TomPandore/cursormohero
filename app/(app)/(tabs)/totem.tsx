@@ -32,6 +32,7 @@ interface ClanData {
 }
 
 export default function TotemScreen() {
+  console.log("Rendu du composant TotemScreen");
   const { user } = useAuth();
   const { currentProgram, userPrograms } = useProgram();
   const [clanData, setClanData] = useState<ClanData | null>(null);

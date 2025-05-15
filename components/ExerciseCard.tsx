@@ -6,9 +6,10 @@ import {
   Image, 
   TouchableOpacity,
   Pressable,
-  Modal
+  Modal,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import ProgressBar from './ProgressBar';
@@ -22,13 +23,27 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Exercise } from '@/types';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 interface ExerciseCardProps {
   exercise: Exercise;
   onUpdateProgress: (exerciseId: string, reps: number) => void;
 }
 
 export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCardProps) {
-  const [showVideo, setShowVideo] = useState(false);
+  // Protection supplémentaire contre les problèmes de données
+  if (!exercise || typeof exercise !== 'object') {
+    console.error('ExerciseCard: exercise invalide:', exercise);
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <Text style={styles.errorText}>Erreur de données</Text>
+        <Text style={styles.errorDesc}>Impossible d'afficher cet exercice</Text>
+      </View>
+    );
+  }
+
+  const [modalVisible, setModalVisible] = useState(false);
+  
   const progress = exercise.targetReps > 0 ? exercise.completedReps / exercise.targetReps : 0;
   const isCompleted = exercise.completedReps >= exercise.targetReps;
   const scale = useSharedValue(1);
@@ -68,7 +83,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           {exercise.videoUrl && (
             <TouchableOpacity 
               style={styles.videoButton}
-              onPress={() => setShowVideo(true)}
+              onPress={() => setModalVisible(true)}
             >
               <Play color={COLORS.text} size={20} />
             </TouchableOpacity>
@@ -76,14 +91,19 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
         </View>
         
         <View style={styles.detailsContainer}>
-          <Text style={styles.title}>{exercise.name}</Text>
-          <Text style={styles.description}>{exercise.description}</Text>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {exercise.name}
+          </Text>
           
           <View style={styles.progressContainer}>
-            <Text style={styles.progressText}>
-              {exercise.completedReps} / {exercise.targetReps}
-            </Text>
-            <ProgressBar progress={progress} height={8} />
+            <View style={styles.progressRow}>
+              <View style={styles.progressBar}>
+                <ProgressBar progress={progress} height={8} />
+              </View>
+              <Text style={styles.progressText}>
+                {exercise.completedReps} / {exercise.targetReps}
+              </Text>
+            </View>
           </View>
           
           {!isCompleted && (
@@ -124,55 +144,141 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           </View>
         )}
       </View>
-      
-      <Modal
-        visible={showVideo}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setShowVideo(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity 
-              onPress={() => setShowVideo(false)}
-              style={styles.closeButton}
-            >
-              <X color={COLORS.text} size={24} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{exercise.name}</Text>
-          </View>
-          
-          <WebView 
-            source={{ uri: exercise.videoUrl || 'about:blank' }}
-            style={styles.webView}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            allowsFullscreenVideo={true}
-            mediaPlaybackRequiresUserAction={false}
-            androidLayerType={'hardware'}
-            mixedContentMode="always"
-            originWhitelist={['*']}
-            startInLoadingState={true}
-            onLoadStart={() => console.log('Début chargement vidéo:', exercise.videoUrl)}
-            onLoad={() => console.log('Vidéo chargée avec succès:', exercise.videoUrl)}
-            onError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.error('Erreur WebView:', nativeEvent);
+
+      {modalVisible && (
+        <View 
+          style={{
+            position: 'absolute',
+            width: SCREEN_WIDTH,
+            height: SCREEN_HEIGHT,
+            backgroundColor: 'black',
+            zIndex: 1000,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            padding: 0,
+            margin: 0,
+          }}
+        >
+          <Pressable 
+            style={{
+              position: 'absolute',
+              top: 40,
+              left: 20,
+              zIndex: 1001,
+              padding: 5,
             }}
-            renderError={(errorDomain, errorCode, errorDesc) => (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>
-                  Impossible de charger la vidéo.
-                </Text>
-                <Text style={styles.errorDesc}>
-                  Erreur: {errorDomain} ({errorCode}): {errorDesc}
-                </Text>
-                <Text style={styles.errorUrl}>URL: {exercise.videoUrl}</Text>
-              </View>
-            )}
+            onPress={() => setModalVisible(false)}
+          >
+            <X color="white" size={30} />
+          </Pressable>
+          
+          <Image 
+            source={{ uri: exercise.imageUrl }} 
+            style={{
+              width: '100%',
+              height: '40%',
+              resizeMode: 'cover',
+            }}
           />
+          
+          <ScrollView style={{backgroundColor: 'black', padding: 20}}>
+            <Text style={{
+              color: 'white',
+              fontSize: 32,
+              fontWeight: 'bold',
+              marginVertical: 20,
+            }}>
+              {exercise.name}
+            </Text>
+            
+            <View style={{
+              marginBottom: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: '#333',
+              paddingBottom: 20,
+              flexDirection: 'row',
+            }}>
+              <View style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                backgroundColor: '#333',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 15,
+              }}>
+                <Text style={{color: 'white', fontSize: 20, fontWeight: 'bold'}}>1</Text>
+              </View>
+              <Text style={{
+                color: 'white',
+                fontSize: 16,
+                flex: 1,
+                lineHeight: 24,
+              }}>
+                Placez vos mains sur la surface surélevée à la largeur des épaules
+              </Text>
+            </View>
+            
+            <View style={{
+              marginBottom: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: '#333',
+              paddingBottom: 20,
+              flexDirection: 'row',
+            }}>
+              <View style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                backgroundColor: '#333',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 15,
+              }}>
+                <Text style={{color: 'white', fontSize: 20, fontWeight: 'bold'}}>2</Text>
+              </View>
+              <Text style={{
+                color: 'white',
+                fontSize: 16,
+                flex: 1,
+                lineHeight: 24,
+              }}>
+                Tout en inspirant, descendez votre corps en pliant vos coudes à 90 degrés
+              </Text>
+            </View>
+            
+            <View style={{
+              marginBottom: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: '#333',
+              paddingBottom: 20,
+              flexDirection: 'row',
+            }}>
+              <View style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                backgroundColor: '#333',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 15,
+              }}>
+                <Text style={{color: 'white', fontSize: 20, fontWeight: 'bold'}}>3</Text>
+              </View>
+              <Text style={{
+                color: 'white',
+                fontSize: 16,
+                flex: 1,
+                lineHeight: 24,
+              }}>
+                Une fois au point le plus bas, faites une pause puis repoussez votre corps vers le haut
+              </Text>
+            </View>
+          </ScrollView>
         </View>
-      </Modal>
+      )}
     </Animated.View>
   );
 }
@@ -190,12 +296,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flexDirection: 'row',
-    minHeight: 150,
+    height: 110,
   },
   imageContainer: {
-    width: 120,
+    width: 100,
     position: 'relative',
-    height: '100%',
   },
   image: {
     width: '100%',
@@ -225,35 +330,43 @@ const styles = StyleSheet.create({
   detailsContainer: {
     flex: 1,
     padding: SPACING.md,
+    justifyContent: 'space-between',
   },
   title: {
     ...FONTS.subheading,
     color: COLORS.text,
-  },
-  description: {
-    ...FONTS.caption,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
+    marginBottom: 5,
   },
   progressContainer: {
-    marginBottom: SPACING.sm,
+    marginBottom: 5,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  progressBar: {
+    flex: 1,
+    marginRight: 8,
   },
   progressText: {
     ...FONTS.caption,
     color: COLORS.textSecondary,
+    minWidth: 40,
     textAlign: 'right',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   buttonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   repButton: {
     backgroundColor: COLORS.primaryDark,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
-    marginLeft: SPACING.xs,
+    marginRight: SPACING.xs,
+    marginLeft: 0,
   },
   repButtonText: {
     ...FONTS.button,
@@ -261,7 +374,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   completedTextContainer: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     marginTop: SPACING.xs,
   },
   completedText: {
@@ -269,48 +382,21 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontSize: 14,
   },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  closeButton: {
-    marginRight: SPACING.md,
-  },
-  modalTitle: {
-    ...FONTS.heading,
-    color: COLORS.text,
-  },
-  webView: {
-    flex: 1,
-  },
   errorContainer: {
-    flex: 1,
     padding: SPACING.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.card,
+    height: 110,
   },
   errorText: {
     ...FONTS.heading,
     color: COLORS.error,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   errorDesc: {
     ...FONTS.body,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-    textAlign: 'center',
-  },
-  errorUrl: {
-    ...FONTS.caption,
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
