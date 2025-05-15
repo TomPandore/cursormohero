@@ -4,47 +4,58 @@ import {
   Text,
   View,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   ImageBackground,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
-export default function LoginScreen() {
+export default function SignupScreen() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { signIn, isLoading } = useAuth();
+  const { signUp, isLoading } = useAuth();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const handleSignup = async () => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Veuillez remplir tous les champs');
       return;
     }
 
+    if (!email.includes('@')) {
+      setError('Veuillez entrer une adresse email valide');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
     try {
-      await signIn(email, password);
+      await signUp(name.trim(), email.trim(), password.trim());
+      // La redirection est gérée dans la fonction signUp vers onboarding
     } catch (err) {
-      setError('Identifiants incorrects');
+      setError('Une erreur est survenue lors de l\'inscription');
     }
   };
 
   return (
-    <ImageBackground
-      source={require('@/assets/welcome3.webp')}
+    <ImageBackground 
+      source={require('@/assets/welcome3.webp')} 
       style={styles.backgroundImage}
       resizeMode="cover"
     >
       <LinearGradient
-        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.85)']}
+        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
         style={styles.overlay}
       >
         <KeyboardAvoidingView
@@ -62,10 +73,22 @@ export default function LoginScreen() {
 
             <View style={styles.formContainer}>
               <Text style={styles.questionText}>
-                Bienvenue dans la tribu
+                Toute légende commence par un nom, toi, qui es-tu ?
               </Text>
-              
+
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Pseudo ou nom</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ton nom de légende"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+              </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Email</Text>
@@ -84,30 +107,22 @@ export default function LoginScreen() {
                 <Text style={styles.label}>Mot de passe</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ton mot de passe"
+                  placeholder="Minimum 6 caractères"
                   placeholderTextColor={COLORS.textSecondary}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  autoCapitalize="none"
                 />
               </View>
 
               <Button
-                title="Se connecter"
-                onPress={handleLogin}
+                title="Continuer"
+                onPress={handleSignup}
                 isLoading={isLoading}
                 fullWidth
                 style={styles.button}
               />
-
-              <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>
-                  Pas encore de compte ?
-                </Text>
-                <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-                  <Text style={styles.signupLink}>Inscrivez-vous</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -130,9 +145,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradient: {
-    flex: 1,
-  },
   scrollContent: {
     flexGrow: 1,
     padding: SPACING.lg,
@@ -146,18 +158,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 200,
     height: 60,
-  },
-  title: {
-    ...FONTS.heading,
-    fontSize: 40,
-    fontFamily: 'Rajdhani-Bold',
-    color: COLORS.text,
-    letterSpacing: 5,
-  },
-  subtitle: {
-    ...FONTS.caption,
-    color: COLORS.textSecondary,
-    letterSpacing: 2,
   },
   formContainer: {
     backgroundColor: COLORS.card,
@@ -196,19 +196,4 @@ const styles = StyleSheet.create({
   button: {
     marginTop: SPACING.md,
   },
-  signupContainer: {
-    marginTop: SPACING.lg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  signupText: {
-    ...FONTS.body,
-    color: COLORS.textSecondary,
-  },
-  signupLink: {
-    ...FONTS.body,
-    color: COLORS.primary,
-    marginLeft: SPACING.xs,
-  },
-});
+}); 

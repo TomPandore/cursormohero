@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { Program, DailyRitual, UserProgram } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import { markDayAsCompleted } from '@/lib/statsUtils';
 
 interface ProgramContextProps {
   programs: Program[];
@@ -37,8 +38,8 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
   const [currentRitual, setCurrentRitual] = useState<DailyRitual | null>(null);
   const { user } = useAuth();
 
-  const loadData = async () => {
-    try {
+    const loadData = async () => {
+      try {
       setIsLoading(true);
       
       // Récupérer l'utilisateur courant
@@ -120,7 +121,7 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       });
 
       setPrograms(formattedPrograms);
-
+        
       // Mettre à jour le currentProgram selon le profil
       if (userProgrammeId) {
         console.log('Recherche du programme avec ID:', userProgrammeId);
@@ -211,10 +212,129 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         setCurrentProgram(null);
         setUserPrograms([]);
       }
+      } catch (error) {
+        console.error('Failed to load programs:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+  // Fonction pour vérifier et passer au jour suivant si un nouveau jour a commencé
+  const checkAndAdvanceDay = async () => {
+    try {
+      if (!currentProgram || !userPrograms.length || !user?.id) {
+        return;
+      }
+      
+      const currentUserProgram = userPrograms[0];
+      
+      // Récupérer la date de dernière mise à jour depuis le profil
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('progress, last_completed_day')
+        .eq('id', user.id)
+        .single();
+        
+      if (profileError) {
+        console.error('Erreur lors de la récupération du profil:', profileError);
+        return;
+      }
+      
+      // Si aucune date de dernière complétion ou pas de progression, rien à faire
+      if (!profileData.last_completed_day && !profileData.progress?.lastUpdated) {
+        console.log('Aucune date de dernière complétion trouvée, pas de changement de jour');
+        return;
+      }
+      
+      // Utiliser last_completed_day en priorité, sinon utiliser lastUpdated
+      const lastCompletionDate = profileData.last_completed_day 
+        ? new Date(profileData.last_completed_day) 
+        : new Date(profileData.progress?.lastUpdated);
+      
+      // Extraire seulement la date (sans l'heure)
+      const lastCompletionDay = new Date(
+        lastCompletionDate.getFullYear(),
+        lastCompletionDate.getMonth(),
+        lastCompletionDate.getDate()
+      );
+      
+      // Date actuelle (sans l'heure)
+      const today = new Date();
+      const currentDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+      
+      console.log('Vérification du changement de jour:');
+      console.log('- Dernier jour complété:', lastCompletionDay.toISOString().split('T')[0]);
+      console.log('- Jour actuel:', currentDay.toISOString().split('T')[0]);
+      console.log('- Jour du programme actuel:', currentUserProgram.currentDay);
+      console.log('- Durée totale du programme:', currentProgram.duration);
+      
+      // Si on est sur un nouveau jour, avancer au jour suivant
+      if (currentDay > lastCompletionDay) {
+        console.log('Nouveau jour détecté, passage au jour suivant');
+        
+        // Incrémenter le jour
+        const nextDay = currentUserProgram.currentDay + 1;
+        
+        // Vérifier si on a terminé le programme
+        const isCompleted = nextDay > currentProgram.duration;
+          
+        // Mettre à jour l'état local
+        const newDay = isCompleted ? currentUserProgram.currentDay : nextDay;
+        setUserPrograms([{
+          ...currentUserProgram,
+          currentDay: newDay,
+          completed: isCompleted,
+          lastUpdated: new Date()
+        }]);
+        
+        // S'assurer que programme_id est correctement sauvegardé
+        const programId = currentProgram.id;
+        
+        // Mettre à jour le profil dans la base de données avec le bon champ 'progress'
+        const updateData = {
+          progress: { 
+            currentDay: newDay,
+            lastUpdated: new Date().toISOString(),
+            completedDate: isCompleted ? new Date().toISOString() : null,
+            totalCompletedDays: isCompleted ? (currentProgram.duration || 0) : currentUserProgram.currentDay
+          },
+          // S'assurer que le programme_id est toujours présent
+          programme_id: programId
+        };
+        
+        console.log('Avancement automatique au jour suivant:', updateData);
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error('Erreur lors de la mise à jour automatique de la progression:', updateError);
+        } else {
+          console.log('Progression mise à jour, jour suivant chargé:', newDay);
+          
+          // Vider le rituel courant pour forcer un rechargement
+          // Mais seulement si on est effectivement passé à un nouveau jour
+          if (!isCompleted) {
+            console.log('Réinitialisation du rituel pour charger le jour suivant');
+            setCurrentRitual(null);
+            
+            // Recharger le nouveau jour
+            getCurrentDayRitual();
+          } else {
+            console.log('Programme terminé, pas de chargement d\'un nouveau jour');
+          }
+        }
+      } else {
+        console.log('Toujours le même jour, pas de changement de jour');
+      }
     } catch (error) {
-      console.error('Failed to load programs:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Erreur lors de la vérification de changement de jour:', error);
     }
   };
 
@@ -226,10 +346,17 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
   // Recharger les données quand l'utilisateur change
   useEffect(() => {
     if (user) {
-      console.log('Rechargement des données après changement d'utilisateur', user.id);
+      console.log("Rechargement des données après changement d'utilisateur", user.id);
       loadData();
     }
   }, [user?.id]);
+
+  // Vérifier si un nouveau jour a commencé lors du chargement
+  useEffect(() => {
+    if (currentProgram && userPrograms.length > 0 && user) {
+      checkAndAdvanceDay();
+    }
+  }, [currentProgram, userPrograms.length, user?.id]);
 
   const selectProgram = async (programId: string) => {
     try {
@@ -266,6 +393,20 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         completedDate: null,
         totalCompletedDays: 0
       };
+      
+      // Effacer toutes les progressions d'exercices de l'utilisateur
+      console.log('Suppression de toutes les progressions d\'exercices pour l\'utilisateur:', user.id);
+      const { error: deleteProgressError } = await supabase
+        .from('progression_exercice')
+        .delete()
+        .eq('user_id', user.id);
+        
+      if (deleteProgressError) {
+        console.error('Erreur lors de la suppression des progressions d\'exercices:', deleteProgressError);
+        // Continuer malgré l'erreur
+      } else {
+        console.log('Toutes les progressions d\'exercices ont été supprimées avec succès');
+      }
       
       // Mise à jour complète avec programme_id ET progress
       console.log('Mise à jour du profil avec programme_id et progress');
@@ -337,6 +478,15 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
     
     console.log('Récupération du rituel pour le jour:', userProgram.currentDay);
 
+    // Vérifier si le jour demandé dépasse la durée du programme
+    if (userProgram.currentDay > currentProgram.duration) {
+      console.log('Le jour demandé dépasse la durée du programme');
+      return null;
+    }
+
+    // Récupérer une citation aléatoire pour le jour
+    const dailyQuote = await getRandomQuote();
+
     // Récupérer le jour courant dans la table jours
     const { data: joursData, error: joursError } = await supabase
       .from('jours')
@@ -360,6 +510,14 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
 
     if (joursError || !joursData) {
       console.error('Erreur ou pas de données pour le jour:', joursError);
+      
+      // Si nous avons un rituel courant, on le conserve au lieu de retourner null
+      // Cela évitera que l'écran affiche "Programme terminé" à tort
+      if (currentRitual && currentRitual.day === userProgram.currentDay) {
+        console.log('Conservation du rituel courant pour éviter une interruption');
+        return currentRitual;
+      }
+      
       return null;
     }
 
@@ -445,13 +603,42 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       id: joursData.id,
       programId: currentProgram.id,
       day: userProgram.currentDay,
-      quote: joursData.quote || defaultQuote,
+      quote: dailyQuote || joursData.quote || defaultQuote,
       exercises: exercicesTries,
       isCompleted: false
     };
 
     setCurrentRitual(ritual);
     return ritual;
+  };
+
+  // Fonction pour récupérer une citation aléatoire
+  const getRandomQuote = async (): Promise<string | null> => {
+    try {
+      // Récupérer toutes les citations
+      const { data, error } = await supabase
+        .from('quotes')
+        .select('citation');
+      
+      if (error || !data || data.length === 0) {
+        console.error('Erreur lors de la récupération des citations:', error);
+        return null;
+      }
+
+      console.log(`Nombre total de citations: ${data.length}`);
+      
+      // Générer un index aléatoire
+      const randomIndex = Math.floor(Math.random() * data.length);
+      
+      // Récupérer la citation aléatoire
+      const randomQuote = data[randomIndex].citation;
+      console.log('Citation aléatoire récupérée:', randomQuote);
+      
+      return randomQuote;
+    } catch (error) {
+      console.error('Erreur lors de la récupération d\'une citation aléatoire:', error);
+      return null;
+    }
   };
 
   const updateExerciseProgress = async (exerciseId: string, reps: number) => {
@@ -589,7 +776,7 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         if (countError) {
           console.error('Erreur lors de la vérification de l\'existence de la progression:', countError);
           return;
-        }
+      }
         
         if (count && count > 0) {
           // Update si existe
@@ -633,6 +820,21 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         return;
       }
       
+      // Vérifier que tous les exercices ont été complétés
+      if (currentRitual) {
+        const allExercisesCompleted = currentRitual.exercises.every(
+          exercise => exercise.completedReps >= exercise.targetReps
+        );
+        
+        if (!allExercisesCompleted) {
+          console.warn('Certains exercices ne sont pas complétés. Jour non validé.');
+          // On pourrait aussi retourner un message pour l'utilisateur ici
+          return false;
+        }
+        
+        console.log('Tous les exercices du jour sont complétés. Validation du jour...');
+      }
+      
       // Récupérer d'abord le profil pour avoir les données actuelles
       const { data: currentProfile, error: profileError } = await supabase
         .from('profiles')
@@ -650,68 +852,33 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       // Trouver le programme utilisateur actuel
       const currentUserProgram = userPrograms[0];
       
-      // Incrémenter le jour
-      const nextDay = currentUserProgram.currentDay + 1;
+      // MODIFICATION: Ne pas incrémenter le jour automatiquement
+      // On met simplement à jour le flag isCompleted dans le state local
+      // pour indiquer que le jour est terminé
+      const isCurrentDayCompleted = true;
       
-      // Vérifier si on a terminé le programme
-      const isCompleted = nextDay > currentProgram.duration;
-      
-      // Mettre à jour l'état local
-      const newDay = isCompleted ? currentUserProgram.currentDay : nextDay;
-      setUserPrograms([{
-        ...currentUserProgram,
-        currentDay: newDay,
-          completed: isCompleted,
-        lastUpdated: new Date()
-      }]);
-      
-      // S'assurer que programme_id est correctement sauvegardé
-      const programId = currentProgram.id;
-      
-      // Mettre à jour le profil dans la base de données avec le bon champ 'progress'
-      const updateData = {
-        progress: { 
-          currentDay: newDay,
-          lastUpdated: new Date().toISOString(),
-          completedDate: isCompleted ? new Date().toISOString() : null,
-          totalCompletedDays: isCompleted ? (currentProgram.duration || 0) : newDay - 1
-        },
-        // S'assurer que le programme_id est toujours présent
-        programme_id: programId
-      };
-      
-      console.log('Mise à jour du profil avec:', updateData);
-      
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id);
-      
-      if (updateError) {
-        console.error('Erreur lors de la mise à jour de la progression:', updateError);
-      } else {
-        console.log('Progression sauvegardée, jour suivant:', newDay);
-        
-        // Vérifier que les données ont été correctement sauvegardées
-        const { data: verifyProfile, error: verifyError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        if (verifyError) {
-          console.error('Erreur lors de la vérification du profil après mise à jour:', verifyError);
-        } else {
-          console.log('Profil après mise à jour:', verifyProfile);
-          console.log('Vérification programme_id:', verifyProfile.programme_id);
-          console.log('Vérification progress:', verifyProfile.progress);
+      // Marquer ce jour comme complété dans les statistiques 
+      // et mettre à jour les jours consécutifs et le total de jours
+      try {
+        console.log('Marquage du jour comme complété dans les statistiques');
+        if (!currentProfile.clan_id) {
+          console.warn('Aucun clan_id trouvé pour l\'utilisateur, utilisation d\'un ID par défaut');
         }
+        
+        const result = await markDayAsCompleted(user.id, currentProfile.clan_id || '00000000-0000-0000-0000-000000000000');
+        if (result) {
+          console.log('Jour marqué comme complété avec succès dans les statistiques');
+          
+          // IMPORTANT: Ne pas modifier currentRitual ici
+          // Laisser l'utilisateur voir les exercices complétés jusqu'à minuit
+        } else {
+          console.warn('Échec lors du marquage du jour comme complété dans les statistiques');
+        }
+      } catch (statsError) {
+        console.error('Erreur lors du marquage du jour dans les statistiques:', statsError);
       }
       
-      // Vider le rituel courant pour forcer un rechargement
-      setCurrentRitual(null);
-      
-      return isCompleted;
+      return isCurrentDayCompleted;
     } catch (error) {
       console.error('Erreur lors de la complétion du jour:', error);
     }

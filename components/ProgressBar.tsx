@@ -15,6 +15,8 @@ interface ProgressBarProps {
   showPercentage?: boolean;
   color?: string;
   animationDuration?: number;
+  title?: string | React.ReactNode;
+  percentagePosition?: 'inside' | 'below' | 'right';
 }
 
 export default function ProgressBar({
@@ -23,6 +25,8 @@ export default function ProgressBar({
   showPercentage = false,
   color = COLORS.progress.completed,
   animationDuration = 500,
+  title,
+  percentagePosition = 'right',
 }: ProgressBarProps) {
   const progressValue = useSharedValue(0);
   
@@ -38,9 +42,17 @@ export default function ProgressBar({
       width: `${progressValue.value * 100}%`,
     };
   });
+
+  const percentage = `${Math.round(progress * 100)}%`;
   
   return (
     <View style={styles.container}>
+      {title && (
+        typeof title === 'string' 
+          ? <Text style={styles.titleText}>{title}</Text>
+          : title
+      )}
+      
       <View style={[styles.backgroundBar, { height }]}>
         <Animated.View 
           style={[
@@ -49,11 +61,25 @@ export default function ProgressBar({
             progressStyle
           ]} 
         />
+        
+        {showPercentage && percentagePosition === 'inside' && (
+          <View style={styles.insideTextContainer}>
+            <Text style={styles.insidePercentageText}>
+              {percentage}
+            </Text>
+          </View>
+        )}
       </View>
       
-      {showPercentage && (
-        <Text style={styles.percentageText}>
-          {`${Math.round(progress * 100)}%`}
+      {showPercentage && percentagePosition === 'below' && (
+        <Text style={styles.belowPercentageText}>
+          {percentage}
+        </Text>
+      )}
+      
+      {showPercentage && percentagePosition === 'right' && (
+        <Text style={styles.rightPercentageText}>
+          {percentage}
         </Text>
       )}
     </View>
@@ -69,14 +95,48 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.progress.background,
     borderRadius: BORDER_RADIUS.sm,
     overflow: 'hidden',
+    position: 'relative',
   },
   progressBar: {
     borderRadius: BORDER_RADIUS.sm,
   },
-  percentageText: {
+  rightPercentageText: {
     ...FONTS.caption,
     color: COLORS.textSecondary,
     marginTop: 4,
     textAlign: 'right',
+  },
+  belowPercentageText: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  insideTextContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  insidePercentageText: {
+    ...FONTS.caption,
+    color: COLORS.text,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
+    fontSize: 12,
+  },
+  titleText: {
+    ...FONTS.subheading,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

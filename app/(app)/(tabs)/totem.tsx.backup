@@ -7,7 +7,6 @@ import {
   ImageBackground,
   TouchableOpacity,
   Image,
-  Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -20,8 +19,6 @@ import { useProgram } from '@/context/ProgramContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserStats, UserStats } from '@/lib/statsUtils';
 import { ChevronRight, Flame, Dumbbell, Activity, Wind } from 'lucide-react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface ClanData {
   nom_clan: string;
@@ -89,9 +86,7 @@ export default function TotemScreen() {
     const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
     if (!userProgram) return 0;
     
-    if (userProgram.currentDay <= 1) return 0;
-    
-    return (userProgram.currentDay - 1) / (currentProgram.duration - 1);
+    return userProgram.currentDay / currentProgram.duration;
   };
 
   const handleChangeClan = () => {
@@ -116,6 +111,10 @@ export default function TotemScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.header}>
+        <Text style={styles.title}>VOTRE TOTEM</Text>
+      </View>
+      
       <View style={styles.totemContainer}>
         <ImageBackground
           source={{ uri: clanData.image_totem || clanData.image_url }}
@@ -123,74 +122,57 @@ export default function TotemScreen() {
           imageStyle={styles.clanBackgroundImage}
         >
           <LinearGradient
-            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.85)']}
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
             style={styles.gradient}
           >
             <View style={styles.totemContent}>
+              <Text style={styles.welcomeText}>Bienvenue, {user.name}</Text>
+              
               <View style={[styles.clanBadge, { backgroundColor: getClanColor() }]}>
                 <Text style={styles.clanName}>CLAN {clanData.nom_clan}</Text>
               </View>
               
-              <View style={styles.badgesContainer}>
-                <View style={styles.statBadge}>
-                  <Flame size={18} color={getClanColor()} />
-                  <Text style={styles.badgeValue}>{userStats.consecutiveDays}</Text>
-                  <Text style={styles.badgeLabel}>Jours terminés</Text>
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{userStats.totalDaysCompleted}</Text>
+                  <Text style={styles.statLabel}>JOURS ACCOMPLIS</Text>
                 </View>
                 
-                <View style={styles.statBadge}>
-                  <Dumbbell size={18} color={getClanColor()} />
-                  <Text style={styles.badgeValue}>{userStats.totalPushups}</Text>
-                  <Text style={styles.badgeLabel}>pompes réalisées</Text>
-                </View>
-                
-                <View style={styles.statBadge}>
-                  <Activity size={18} color={getClanColor()} />
-                  <Text style={styles.badgeValue}>{userStats.totalSquats}</Text>
-                  <Text style={styles.badgeLabel}>squats effectués</Text>
-                </View>
-                
-                <View style={styles.statBadge}>
-                  <Wind size={18} color={getClanColor()} />
-                  <Text style={styles.badgeValue}>{userStats.totalBreathingExercises}</Text>
-                  <Text style={styles.badgeLabel}>Souffle maîtrisé</Text>
-                </View>
+                {currentProgram ? (
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>
+                      {userPrograms.find(up => up.programId === currentProgram.id)?.currentDay || 0}/{currentProgram.duration}
+                    </Text>
+                    <Text style={styles.statLabel}>PROGRESSION</Text>
+                  </View>
+                ) : null}
               </View>
+              
+              {currentProgram ? (
+                <View style={styles.programContainer}>
+                  <Text style={styles.programTitle}>{currentProgram.title}</Text>
+                  <ProgressBar 
+                    progress={getCurrentProgramProgress()} 
+                    showPercentage 
+                    color={getClanColor()}
+                  />
+                </View>
+              ) : (
+                <View style={styles.noProgramContainer}>
+                  <Text style={styles.noProgramText}>
+                    Aucun programme en cours
+                  </Text>
+                  <Button
+                    title="Choisir un programme"
+                    onPress={() => router.push('/(app)/(tabs)/voies')}
+                    size="small"
+                    style={styles.programButton}
+                  />
+                </View>
+              )}
             </View>
           </LinearGradient>
         </ImageBackground>
-      </View>
-      
-      <View style={styles.programOuterContainer}>
-        {currentProgram ? (
-          <View style={styles.programContainer}>
-            <ProgressBar 
-              progress={getCurrentProgramProgress()} 
-              showPercentage 
-              color={getClanColor()}
-              percentagePosition="inside"
-              title={
-                <View style={styles.programTitleContainer}>
-                  <Text style={styles.programTitlePrefix}>Voie en cours : </Text>
-                  <Text style={styles.programTitleName}>{currentProgram.title}</Text>
-                </View>
-              }
-              height={20}
-            />
-          </View>
-        ) : (
-          <View style={styles.noProgramContainer}>
-            <Text style={styles.noProgramText}>
-              Aucun programme en cours
-            </Text>
-            <Button
-              title="Choisir un programme"
-              onPress={() => router.push('/(app)/(tabs)/voies')}
-              size="small"
-              style={styles.programButton}
-            />
-          </View>
-        )}
       </View>
       
       <View style={styles.clanInfoContainer}>
@@ -202,10 +184,70 @@ export default function TotemScreen() {
         </View>
         
         <View style={styles.clanInfoCard}>
-          <Text style={[styles.clanTitle, { color: getClanColor() }]}>
-            {user.name.toUpperCase()}, TU ES UN {clanData.nom_clan}
-          </Text>
+          <Text style={[styles.clanTitle, { color: getClanColor() }]}>TU ES UN {clanData.nom_clan} !</Text>
           <Text style={styles.ritualText}>{clanData.rituel_entree}</Text>
+        </View>
+      </View>
+      
+      <View style={styles.statsTotemContainer}>
+        <Text style={styles.sectionTitle}>STATS TOTEM</Text>
+        
+        <View style={styles.statsTotemCard}>
+          <View style={styles.statsTotemHeader}>
+            <View style={[styles.totemDecoration, { backgroundColor: getClanColor() }]} />
+            <View style={[styles.totemDecoration, { backgroundColor: getClanColor() }]} />
+          </View>
+          
+          <View style={styles.statRow}>
+            <View style={styles.statIcon}>
+              <Flame size={20} color={COLORS.text} />
+            </View>
+            <View style={styles.statDetails}>
+              <Text style={styles.statTitle}>Jours actifs consécutifs</Text>
+              <Text style={[styles.statCount, { color: getClanColor() }]}>{userStats.consecutiveDays}</Text>
+            </View>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: getClanColor(), opacity: 0.3 }]} />
+          
+          <View style={styles.statRow}>
+            <View style={styles.statIcon}>
+              <Dumbbell size={20} color={COLORS.text} />
+            </View>
+            <View style={styles.statDetails}>
+              <Text style={styles.statTitle}>Total de pompes effectuées</Text>
+              <Text style={[styles.statCount, { color: getClanColor() }]}>{userStats.totalPushups}</Text>
+            </View>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: getClanColor(), opacity: 0.3 }]} />
+          
+          <View style={styles.statRow}>
+            <View style={styles.statIcon}>
+              <Activity size={20} color={COLORS.text} />
+            </View>
+            <View style={styles.statDetails}>
+              <Text style={styles.statTitle}>Squats cumulés</Text>
+              <Text style={[styles.statCount, { color: getClanColor() }]}>{userStats.totalSquats}</Text>
+            </View>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: getClanColor(), opacity: 0.3 }]} />
+          
+          <View style={styles.statRow}>
+            <View style={styles.statIcon}>
+              <Wind size={20} color={COLORS.text} />
+            </View>
+            <View style={styles.statDetails}>
+              <Text style={styles.statTitle}>Rituels de respiration complétés</Text>
+              <Text style={[styles.statCount, { color: getClanColor() }]}>{userStats.totalBreathingExercises}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.statsTotemFooter}>
+            <View style={[styles.totemDecoration, { backgroundColor: getClanColor() }]} />
+            <View style={[styles.totemDecoration, { backgroundColor: getClanColor() }]} />
+          </View>
         </View>
       </View>
       
@@ -216,10 +258,6 @@ export default function TotemScreen() {
           <Text style={styles.changeClanDescription}>
             Tu peux quitter ton clan actuel pour en rejoindre un autre.
             Tu gardes ta progression, mais ton entraînement changera de philosophie.
-          </Text>
-          
-          <Text style={styles.noteText}>
-            Dans cette version de l'application, le choix du clan n'influence pas votre parcours.
           </Text>
           
           <TouchableOpacity 
@@ -241,96 +279,88 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   contentContainer: {
-    paddingBottom: SPACING.lg,
+    padding: SPACING.lg,
+    paddingTop: SPACING.xl * 2,
+  },
+  header: {
+    marginBottom: SPACING.lg,
+  },
+  title: {
+    ...FONTS.heading,
+    color: COLORS.text,
+    fontSize: 24,
+    letterSpacing: 2,
   },
   totemContainer: {
-    height: 450,
-    width: SCREEN_WIDTH,
+    height: 400,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    marginBottom: SPACING.xl,
   },
   clanBackground: {
     flex: 1,
-    width: '100%',
   },
   clanBackgroundImage: {
-    width: '100%',
+    borderRadius: BORDER_RADIUS.lg,
   },
   gradient: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: 0,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
   },
   totemContent: {
-    height: '100%',
-    justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 1,
-    width: '100%',
   },
   welcomeText: {
     ...FONTS.heading,
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: 26,
     marginBottom: SPACING.md,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   clanBadge: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
-    marginTop: SPACING.lg,
-    alignSelf: 'center',
+    marginBottom: SPACING.lg,
   },
   clanName: {
     ...FONTS.button,
     color: COLORS.text,
     letterSpacing: 1,
-    fontWeight: 'bold',
   },
-  programOuterContainer: {
-    marginTop: 0,
-    width: SCREEN_WIDTH,
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: SPACING.lg,
+  },
+  statItem: {
+    alignItems: 'center',
+    marginHorizontal: SPACING.md,
+  },
+  statValue: {
+    ...FONTS.heading,
+    color: COLORS.text,
+    fontSize: 28,
+  },
+  statLabel: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    letterSpacing: 1,
   },
   programContainer: {
     width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    padding: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
-    marginBottom: SPACING.md,
-    borderLeftWidth: 0,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
   },
-  programTitleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  programTitlePrefix: {
-    ...FONTS.subheading,
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
-  programTitleName: {
+  programTitle: {
     ...FONTS.subheading,
     color: COLORS.text,
-    fontWeight: 'bold',
-    fontSize: 14,
+    marginBottom: SPACING.sm,
   },
   noProgramContainer: {
-    width: '100%',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 0,
   },
   noProgramText: {
     ...FONTS.body,
@@ -344,7 +374,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
     position: 'relative',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
   },
   avatarContainer: {
     position: 'absolute',
@@ -373,7 +402,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
-    paddingTop: SPACING.xl + 50,
+    paddingTop: SPACING.xl + 30,
     marginTop: 40,
     width: '100%',
   },
@@ -381,7 +410,6 @@ const styles = StyleSheet.create({
     ...FONTS.heading,
     fontSize: 18,
     marginBottom: SPACING.sm,
-    textTransform: 'uppercase',
   },
   changeClanLink: {
     flexDirection: 'row',
@@ -401,15 +429,52 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 24,
   },
+  journeyContainer: {
+    marginBottom: SPACING.xl,
+  },
   sectionTitle: {
     ...FONTS.subheading,
     color: COLORS.text,
     marginBottom: SPACING.md,
     letterSpacing: 1,
   },
+  journeyCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+  },
+  journeyText: {
+    ...FONTS.body,
+    color: COLORS.text,
+    fontStyle: 'italic',
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+  journeyStat: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  journeyLabel: {
+    ...FONTS.body,
+    color: COLORS.textSecondary,
+  },
+  journeyValue: {
+    ...FONTS.body,
+    color: COLORS.text,
+    fontFamily: 'Rajdhani-Bold',
+  },
+  ritualButton: {
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+  },
+  ritualButtonText: {
+    ...FONTS.button,
+    color: COLORS.text,
+  },
   changeClanContainer: {
     marginBottom: SPACING.xl,
-    paddingHorizontal: SPACING.lg,
   },
   changeClanCard: {
     backgroundColor: COLORS.card,
@@ -431,49 +496,66 @@ const styles = StyleSheet.create({
     ...FONTS.button,
     color: COLORS.text,
   },
-  bottomContent: {
-    display: 'none',
+  statsTotemContainer: {
+    marginBottom: SPACING.xl,
   },
-  badgesContainer: {
-    width: '100%',
+  statsTotemCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderColor: COLORS.primary,
+  },
+  statsTotemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  statBadge: {
-    alignItems: 'center',
-    width: '22%',
-    marginBottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: BORDER_RADIUS.sm,
-    padding: 4,
-  },
-  badgeValue: {
-    ...FONTS.heading,
-    color: COLORS.text,
-    fontSize: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  badgeLabel: {
-    ...FONTS.body,
-    color: COLORS.textSecondary,
-    fontSize: 10,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0.5, height: 0.5 },
-    textShadowRadius: 1,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: 150,
-  },
-  noteText: {
-    ...FONTS.body,
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontStyle: 'italic',
     marginBottom: SPACING.md,
+  },
+  statsTotemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.md,
+  },
+  totemDecoration: {
+    width: 40,
+    height: 8,
+    borderRadius: 4,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.sm,
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  statEmoji: {
+    fontSize: 20,
+  },
+  statDetails: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statTitle: {
+    ...FONTS.body,
+    color: COLORS.text,
+  },
+  statCount: {
+    ...FONTS.heading,
+    fontSize: 22,
+  },
+  statDivider: {
+    height: 1,
+    width: '100%',
+    marginVertical: SPACING.xs,
   },
 });

@@ -113,7 +113,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           
           {isCompleted && (
             <View style={styles.completedTextContainer}>
-              <Text style={styles.completedText}>Rituel terminé !</Text>
+              <Text style={styles.completedText}>Rituel gravé sur ton totem !</Text>
             </View>
           )}
         </View>
@@ -148,6 +148,28 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
             javaScriptEnabled={true}
             domStorageEnabled={true}
             allowsFullscreenVideo={true}
+            mediaPlaybackRequiresUserAction={false}
+            androidLayerType={'hardware'}
+            mixedContentMode="always"
+            originWhitelist={['*']}
+            startInLoadingState={true}
+            onLoadStart={() => console.log('Début chargement vidéo:', exercise.videoUrl)}
+            onLoad={() => console.log('Vidéo chargée avec succès:', exercise.videoUrl)}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('Erreur WebView:', nativeEvent);
+            }}
+            renderError={(errorDomain, errorCode, errorDesc) => (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>
+                  Impossible de charger la vidéo.
+                </Text>
+                <Text style={styles.errorDesc}>
+                  Erreur: {errorDomain} ({errorCode}): {errorDesc}
+                </Text>
+                <Text style={styles.errorUrl}>URL: {exercise.videoUrl}</Text>
+              </View>
+            )}
           />
         </View>
       </Modal>
@@ -168,15 +190,20 @@ const styles = StyleSheet.create({
   },
   content: {
     flexDirection: 'row',
+    minHeight: 150,
   },
   imageContainer: {
     width: 120,
-    height: 120,
     position: 'relative',
+    height: '100%',
   },
   image: {
     width: '100%',
     height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
   },
   videoButton: {
     position: 'absolute',
@@ -262,5 +289,29 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  errorContainer: {
+    flex: 1,
+    padding: SPACING.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  errorText: {
+    ...FONTS.heading,
+    color: COLORS.error,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  errorDesc: {
+    ...FONTS.body,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  errorUrl: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 });

@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
 
   return (
     <ImageBackground
-      source={require('@/assets/background-home-v2.png')}
+      source={require('@/assets/welcome5.webp')}
       style={styles.background}
       resizeMode="cover"
     >
@@ -32,7 +32,7 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Link href="/(auth)/onboarding" asChild>
+          <Link href="/(auth)/signup" asChild>
             <Button 
               title="Rejoindre la tribu" 
               fullWidth
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingTop: SPACING.xl * 3,
+    paddingTop: SPACING.xl * 2,
   },
   logoImage: {
     width: 200,

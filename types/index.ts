@@ -5,6 +5,7 @@ export interface User {
   clanId: string | null;
   totalDaysCompleted: number;
   currentProgramId?: string;
+  onboardingDone?: boolean;
 }
 
 export interface Program {

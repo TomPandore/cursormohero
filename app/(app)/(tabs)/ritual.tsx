@@ -32,9 +32,11 @@ export default function DailyRitualScreen() {
     currentRitual,
     getCurrentDayRitual, 
     updateExerciseProgress,
+    completeDay
   } = useProgram();
   
   const [isLoading, setIsLoading] = useState(true);
+  const [dayCompleted, setDayCompleted] = useState(false);
   const pulseValue = useSharedValue(1);
   
   useEffect(() => {
@@ -56,6 +58,56 @@ export default function DailyRitualScreen() {
     };
     fetchRitual();
   }, [currentProgram, userPrograms]);
+  
+  // Effet pour détecter quand tous les exercices sont terminés
+  useEffect(() => {
+    // Vérifier si tous les exercices sont complétés
+    if (currentRitual && !dayCompleted) {
+      const allExercisesCompleted = currentRitual.exercises.every(
+        exercise => exercise.completedReps >= exercise.targetReps
+      );
+      
+      // Si tous les exercices sont complétés, marquer le jour comme terminé dans les statistiques
+      // mais sans passer au jour suivant
+      if (allExercisesCompleted) {
+        console.log('Tous les exercices sont complétés, marquage du jour comme terminé...');
+        const markDayAsCompleted = async () => {
+          try {
+            // Éviter de rappeler completeDay si le jour est déjà marqué comme complété
+            // dans l'état local, même si tous les exercices sont terminés
+            if (dayCompleted) {
+              console.log('Jour déjà marqué comme complété, pas besoin de rappeler completeDay');
+              return;
+            }
+            
+            const result = await completeDay();
+            if (result) {
+              setDayCompleted(true);
+              console.log('Jour marqué comme terminé avec succès dans les statistiques');
+            }
+          } catch (error) {
+            console.error('Erreur lors du marquage du jour comme terminé:', error);
+          }
+        };
+        
+        markDayAsCompleted();
+      }
+    }
+  }, [currentRitual?.exercises, dayCompleted]);
+  
+  // Réinitialiser dayCompleted lorsque le rituel change (changement de jour)
+  useEffect(() => {
+    if (currentRitual?.id) {
+      // Vérifier si tous les exercices sont déjà complétés
+      const allExercisesCompleted = currentRitual.exercises.every(
+        exercise => exercise.completedReps >= exercise.targetReps
+      );
+      
+      setDayCompleted(allExercisesCompleted);
+    } else {
+      setDayCompleted(false);
+    }
+  }, [currentRitual?.id]);
   
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -93,7 +145,11 @@ export default function DailyRitualScreen() {
     );
   }
   
-  if (!currentRitual) {
+  // Vérifier si le programme est réellement terminé (jour actuel > durée totale)
+  const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
+  const isProgramCompleted = userProgram && currentProgram && userProgram.currentDay > currentProgram.duration;
+  
+  if (isProgramCompleted) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Programme terminé !</Text>
@@ -110,7 +166,25 @@ export default function DailyRitualScreen() {
     );
   }
   
-  const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
+  // Si currentRitual est null mais que le programme n'est pas terminé, 
+  // on affiche un message différent et on essaie de recharger le rituel
+  if (!currentRitual) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>Rituel non disponible</Text>
+        <Text style={styles.emptyText}>
+          Le rituel du jour n'est pas disponible pour le moment.
+          Vérifie que tu as bien terminé les exercices précédents.
+        </Text>
+        <Button
+          title="Actualiser"
+          onPress={() => getCurrentDayRitual()}
+          style={styles.emptyButton}
+        />
+      </View>
+    );
+  }
+  
   const dayProgress = userProgram ? `JOUR ${userProgram.currentDay} / ${currentProgram.duration}` : '';
   
   const calculateDailyProgress = () => {
@@ -129,7 +203,7 @@ export default function DailyRitualScreen() {
   // Message dynamique du mentor en fonction de l'état des rituels
   const getMentorMessage = () => {
     if (isRitualComplete()) {
-      return ["Félicitations !", " Tu as terminé tous les rituels du jour. On se revoit demain."];
+      return ["Félicitations !", " Tu as terminé tous les rituels du jour. Reviens demain pour la suite."];
     } else {
       return currentRitual?.quote || "Commence chaque journée, comme si elle avait été écrite pour toi !";
     }
@@ -160,10 +234,15 @@ export default function DailyRitualScreen() {
           />
           <View style={styles.quoteTextContainer}>
             {isRitualComplete() ? (
-              <Text style={styles.quote}>
-                <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
-                <Text>{getMentorMessage()[1]}</Text>
-              </Text>
+              <>
+                <Text style={styles.quote}>
+                  <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
+                  <Text>{getMentorMessage()[1]}</Text>
+                </Text>
+                <Text style={styles.nextDayInfo}>
+                  Le jour suivant sera disponible à partir de minuit.
+                </Text>
+              </>
             ) : (
               <Text style={styles.quote}>"{getMentorMessage()}"</Text>
             )}
@@ -173,18 +252,39 @@ export default function DailyRitualScreen() {
       
       <View style={styles.progressContainer}>
         <Text style={styles.progressTitle}>Progression du jour</Text>
-        <ProgressBar progress={calculateDailyProgress()} height={12} showPercentage />
+        <ProgressBar 
+          progress={calculateDailyProgress()} 
+          height={20} 
+          showPercentage 
+          percentagePosition="inside"
+        />
       </View>
       
       <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
       
-      {currentRitual.exercises.map((exercise: Exercise) => (
-        <ExerciseCard
-          key={exercise.id}
-          exercise={exercise}
-          onUpdateProgress={updateExerciseProgress}
-        />
-      ))}
+      {currentRitual.exercises
+        // Trier les exercices : d'abord les non terminés, puis les terminés
+        .slice()
+        .sort((a, b) => {
+          const aCompleted = a.completedReps >= a.targetReps;
+          const bCompleted = b.completedReps >= b.targetReps;
+          
+          if (aCompleted === bCompleted) {
+            // Garder l'ordre d'origine si les deux sont terminés ou les deux sont non terminés
+            return 0;
+          }
+          
+          // Les non terminés d'abord (-1), les terminés ensuite (1)
+          return aCompleted ? 1 : -1;
+        })
+        .map((exercise: Exercise) => (
+          <ExerciseCard
+            key={exercise.id}
+            exercise={exercise}
+            onUpdateProgress={updateExerciseProgress}
+          />
+        ))
+      }
     </ScrollView>
   );
 }
@@ -313,5 +413,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
     letterSpacing: 1,
+  },
+  nextDayInfo: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    fontStyle: 'italic',
+    marginTop: SPACING.xs,
+    fontSize: 12,
   },
 });

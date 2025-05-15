@@ -12,7 +12,7 @@ import Animated, {
   interpolate,
   Extrapolate
 } from 'react-native-reanimated';
-import { Check, Shield } from 'lucide-react-native';
+import { Shield } from 'lucide-react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 
@@ -21,6 +21,7 @@ interface ClanCardProps {
     id: string;
     nom_clan: string;
     tagline: string;
+    tags?: string[];
     description: string;
     image_url: string;
   };
@@ -60,6 +61,35 @@ export default function ClanCard({
     };
   });
 
+  // Utiliser les tags s'ils existent, sinon utiliser la tagline convertie
+  let clanAttributes: string[] = [];
+  
+  if (clan.tags && Array.isArray(clan.tags) && clan.tags.length > 0) {
+    // Si les tags existent et sont un tableau non vide, les utiliser directement
+    clanAttributes = clan.tags;
+  } else {
+    // Sinon, fallback sur la conversion de tagline
+    const getClanAttributes = (tagline: string): string[] => {
+      try {
+        // Essayer de parser comme JSON (format ["Force","Mobilité"])
+        const parsedAttributes = JSON.parse(tagline);
+        if (Array.isArray(parsedAttributes)) {
+          return parsedAttributes;
+        }
+      } catch (e) {
+        // Si ce n'est pas un JSON valide, traiter comme une chaîne séparée par des virgules
+        if (typeof tagline === 'string') {
+          return tagline.split(',').map(attr => attr.trim()).filter(attr => attr);
+        }
+      }
+      
+      // Fallback: retourner un tableau vide
+      return [];
+    };
+
+    clanAttributes = getClanAttributes(clan.tagline);
+  }
+
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
       <TouchableOpacity
@@ -82,7 +112,6 @@ export default function ClanCard({
             {isSelected && (
               <View style={[styles.selectedBadge, { backgroundColor: COLORS.primary }]}>
                 <Shield size={24} color={COLORS.text} />
-                <Check size={16} color={COLORS.text} style={styles.checkIcon} />
               </View>
             )}
 
@@ -91,16 +120,15 @@ export default function ClanCard({
                 <Text style={styles.clanName}>{clan.nom_clan}</Text>
               </View>
 
-              <Text style={styles.tagline}>{clan.tagline}</Text>
-              <Text style={styles.description}>{clan.description}</Text>
+              <View style={styles.attributesRow}>
+                {clanAttributes.map((attribute, index) => (
+                  <View key={index} style={styles.badge}>
+                    <Text style={styles.badgeText}>{attribute}</Text>
+                  </View>
+                ))}
+              </View>
 
-              {isSelected && (
-                <View style={[styles.selectedIndicator, { borderColor: COLORS.primary }]}>
-                  <Text style={[styles.selectedText, { color: COLORS.primary }]}>
-                    Sélectionné
-                  </Text>
-                </View>
-              )}
+              <Text style={styles.description}>{clan.description}</Text>
             </View>
           </LinearGradient>
         </ImageBackground>
@@ -140,11 +168,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkIcon: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-  },
   contentContainer: {
     alignItems: 'flex-start',
   },
@@ -159,6 +182,23 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: 'Rajdhani-Bold',
   },
+  attributesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: SPACING.md,
+  },
+  badge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+    marginRight: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  badgeText: {
+    ...FONTS.caption,
+    color: COLORS.text,
+  },
   tagline: {
     ...FONTS.subheading,
     color: COLORS.text,
@@ -168,16 +208,5 @@ const styles = StyleSheet.create({
     ...FONTS.body,
     color: COLORS.text,
     marginBottom: SPACING.lg,
-  },
-  selectedIndicator: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
-    alignSelf: 'center',
-    marginTop: SPACING.md,
-  },
-  selectedText: {
-    ...FONTS.button,
   },
 });

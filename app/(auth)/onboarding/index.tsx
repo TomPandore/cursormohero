@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   ImageBackground,
-  Image,
+  Dimensions,
+  TouchableOpacity,
+  ScrollView
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -16,184 +14,216 @@ import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '@/lib/supabase';
+import { ChevronRight } from 'lucide-react-native';
 
-export default function SignupScreen() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { signUp, isLoading } = useAuth();
+const { width } = Dimensions.get('window');
 
-  const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('Veuillez remplir tous les champs');
-      return;
+// Utilisons temporairement des images existantes pour l'onboarding
+const slides = [
+  {
+    id: '1',
+    title: 'MoHero, un héritage oublié',
+    content: 'Avant les salles, avant les chronos…\nIl y avait Mohero. Une tribu forgée par l’instinct, le feu, la terre. Ce n’était pas du sport. C’était une voie. Aujourd\'hui cette voie, c\'est la tienne.',
+    image: require('@/assets/slide1.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+  {
+    id: '2',
+    title: 'Bouge comme tu vis',
+    content: 'Ici, pas de séances à cocher. Chaque jour, tu t’éveilles par le mouvement. Chaque geste est un rite. Chaque effort est sacré. Ton corps doit être prêt. À tout. Toujours.',
+    image: require('@/assets/slide2.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+  {
+    id: '3',
+    title: 'Choisis ton Clan',
+    content: 'Ton clan reflète ta vraie nature.\nForce brute ? Explosivité ? Fluidité ?\nChaque clan transforme ton corps… \net ton esprit.',
+    image: require('@/assets/slide3.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+  {
+    id: '4',
+    title: 'Trace ta voie',
+    content: 'Ce que tu fais ici ne disparaîtra jamais. Chaque effort grave une empreinte dans ton Totem. Engage-toi. Trace ta voie. Et n’oublie pas… le ciel n’est qu’un début.',
+    image: require('@/assets/slide4.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+];
+
+export default function OnboardingScreen() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const goToNextSlide = () => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < slides.length && scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ x: nextIndex * width, animated: true });
+      setCurrentIndex(nextIndex);
     }
+  };
 
-    if (!email.includes('@')) {
-      setError('Veuillez entrer une adresse email valide');
-      return;
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / width);
+    if (index !== currentIndex) {
+      setCurrentIndex(index);
     }
+  };
 
-    if (password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
-      return;
-    }
-
+  const handleComplete = async () => {
     try {
-      await signUp(name.trim(), email.trim(), password.trim());
-      router.push('/(auth)/onboarding/clan');
-    } catch (err) {
-      setError('Une erreur est survenue lors de l\'inscription');
+      setIsLoading(true);
+      
+      // Update the user's profile to mark onboarding as complete
+      if (user && user.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ onboarding_done: true })
+          .eq('id', user.id);
+
+        if (error) throw error;
+      }
+
+      // Navigate to clan selection
+      router.replace('/(auth)/onboarding/clan');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <ImageBackground 
-      source={require('@/assets/background.png')} 
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <LinearGradient
-        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
-        style={styles.overlay}
+    <View style={styles.container}>
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
       >
-        <KeyboardAvoidingView
-          style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.header}>
-              <Image 
-                source={require('@/assets/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
+        {slides.map((item, index) => (
+          <View key={item.id} style={styles.slideContainer}>
+            <ImageBackground 
+              source={item.image} 
+              style={styles.backgroundImage}
+              resizeMode="cover"
+            >
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+                style={styles.gradientOverlay}
+              >
+                <View style={styles.contentContainer}>
+                  <Text style={styles.title}>{item.title}</Text>
+                  <Text style={styles.content}>{item.content}</Text>
+                  
+                  {index < slides.length - 1 ? (
+                    <TouchableOpacity
+                      style={styles.nextButton}
+                      onPress={goToNextSlide}
+                    >
+                      <ChevronRight color={COLORS.text} size={24} />
+                    </TouchableOpacity>
+                  ) : (
+                    <Button
+                      title="Commencer mon parcours"
+                      onPress={handleComplete}
+                      style={styles.startButton}
+                      isLoading={isLoading}
+                    />
+                  )}
+                </View>
+              </LinearGradient>
+            </ImageBackground>
+          </View>
+        ))}
+      </ScrollView>
 
-            <View style={styles.formContainer}>
-              <Text style={styles.questionText}>
-                Toute légende commence par un nom, toi, qui es-tu ?
-              </Text>
-
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Pseudo ou nom</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ton nom de légende"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="ton@email.com"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Minimum 6 caractères"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <Button
-                title="Continuer"
-                onPress={handleSignup}
-                isLoading={isLoading}
-                fullWidth
-                style={styles.button}
-              />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
-    </ImageBackground>
+      <View style={styles.paginationContainer}>
+        {slides.map((_, i) => (
+          <View 
+            key={`dot-${i}`} 
+            style={[
+              styles.dot,
+              currentIndex === i ? styles.activeDot : null
+            ]}
+          />
+        ))}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: SPACING.lg,
-    justifyContent: 'center',
-    paddingTop: 0,
+  slideContainer: {
+    width,
+    height: '100%',
   },
-  header: {
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  gradientOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: SPACING.xl,
+    paddingBottom: 100,
+  },
+  contentContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.xl * 2,
   },
-  logo: {
-    width: 200,
-    height: 60,
-  },
-  formContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-  },
-  questionText: {
+  title: {
     ...FONTS.heading,
     color: COLORS.text,
-    fontSize: 24,
-    marginBottom: SPACING.xl,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: COLORS.error,
-    ...FONTS.body,
+    fontSize: 28,
     marginBottom: SPACING.md,
     textAlign: 'center',
   },
-  inputContainer: {
-    marginBottom: SPACING.lg,
-  },
-  label: {
-    ...FONTS.caption,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-  },
-  input: {
-    backgroundColor: COLORS.cardSecondary,
-    borderRadius: BORDER_RADIUS.sm,
-    height: 50,
-    paddingHorizontal: SPACING.md,
-    color: COLORS.text,
+  content: {
     ...FONTS.body,
+    color: COLORS.text,
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    lineHeight: 24,
   },
-  button: {
-    marginTop: SPACING.md,
+  nextButton: {
+    backgroundColor: COLORS.primary + '80',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  startButton: {
+    minWidth: 200,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: SPACING.xl,
+    width: '100%',
+  },
+  dot: {
+    height: 8,
+    width: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.textSecondary,
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    width: 16,
+    backgroundColor: COLORS.text,
   },
 });
