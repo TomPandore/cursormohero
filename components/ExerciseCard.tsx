@@ -28,6 +28,7 @@ import { useWindowDimensions } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -154,15 +155,17 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
   
   return (
     <View 
-      style={[
-        StyleSheet.absoluteFill, 
-        { 
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
           backgroundColor: COLORS.background,
           zIndex: 9999,
-          width: dimensions.width,
-          height: dimensions.height,
-        }
-      ]}
+      }}
     >
       <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
       
@@ -175,7 +178,11 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
         <X color="#FFFFFF" size={26} />
       </TouchableOpacity>
       
-      <View style={{ height: dimensions.height * 0.4, width: dimensions.width }}>
+      <View style={{ 
+        height: dimensions.height * 0.4, 
+        width: '100%',
+        position: 'relative'
+      }}>
         {exercise.videoUrl ? (
           <>
             <Video
@@ -214,6 +221,8 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
       <ScrollView 
         style={styles.detailScroll}
         contentContainerStyle={styles.detailScrollContent}
+        bounces={false}
+        scrollEventThrottle={16}
       >
         <Text style={styles.detailTitle}>{exercise.name}</Text>
         
@@ -290,10 +299,19 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
   }
 
   const [showDetails, setShowDetails] = useState(false);
+  const isFocused = useIsFocused();
   
   const progress = exercise.targetReps > 0 ? exercise.completedReps / exercise.targetReps : 0;
   const isCompleted = exercise.completedReps >= exercise.targetReps;
   const scale = useSharedValue(1);
+  
+  // Fermer la modale lorsque l'utilisateur quitte l'écran
+  useEffect(() => {
+    if (!isFocused && showDetails) {
+      console.log("L'écran n'est plus focus, fermeture de la modale");
+      setShowDetails(false);
+    }
+  }, [isFocused]);
   
   // Mise à jour du compteur d'overlays actifs
   useEffect(() => {
@@ -357,73 +375,73 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           onPress={openDetails}
           activeOpacity={0.7}
         >
-          <View style={styles.imageContainer}>
-            <Image 
-              source={{ uri: exercise.imageUrl }} 
-              style={styles.image} 
-              resizeMode="cover"
-            />
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: exercise.imageUrl }} 
+            style={styles.image} 
+            resizeMode="cover"
+          />
             {exercise.videoUrl && (
               <View style={styles.videoIndicator}>
-                <Play color={COLORS.text} size={20} />
+            <Play color={COLORS.text} size={20} />
               </View>
             )}
-          </View>
+        </View>
         
-          <View style={styles.detailsContainer}>
+        <View style={styles.detailsContainer}>
             <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
               {exercise.name}
             </Text>
           
-            <View style={styles.progressContainer}>
+          <View style={styles.progressContainer}>
               <View style={styles.progressRow}>
                 <View style={styles.progressBar}>
                   <ProgressBar progress={progress} height={8} />
                 </View>
-                <Text style={styles.progressText}>
-                  {exercise.completedReps} / {exercise.targetReps}
-                </Text>
+            <Text style={styles.progressText}>
+              {exercise.completedReps} / {exercise.targetReps}
+            </Text>
               </View>
-            </View>
+          </View>
           
             {!isCompleted && (
-              <View style={styles.buttonsContainer}>
-                <Pressable 
-                  style={styles.repButton}
+          <View style={styles.buttonsContainer}>
+            <Pressable 
+              style={styles.repButton}
                   onPress={(e) => {
                     e.stopPropagation();
                     addReps(1);
                   }}
-                >
-                  <Text style={styles.repButtonText}>+1</Text>
-                </Pressable>
+            >
+              <Text style={styles.repButtonText}>+1</Text>
+            </Pressable>
             
-                <Pressable 
-                  style={styles.repButton}
+            <Pressable 
+              style={styles.repButton}
                   onPress={(e) => {
                     e.stopPropagation();
                     addReps(5);
                   }}
-                >
-                  <Text style={styles.repButtonText}>+5</Text>
-                </Pressable>
+            >
+              <Text style={styles.repButtonText}>+5</Text>
+            </Pressable>
             
-                <Pressable 
-                  style={styles.repButton}
+            <Pressable 
+              style={styles.repButton}
                   onPress={(e) => {
                     e.stopPropagation();
                     addReps(10);
                   }}
-                >
-                  <Text style={styles.repButtonText}>+10</Text>
-                </Pressable>
-              </View>
+            >
+              <Text style={styles.repButtonText}>+10</Text>
+            </Pressable>
+          </View>
             )}
             
             {isCompleted && (
               <View style={styles.completedTextContainer}>
                 <Text style={styles.completedText}>Rituel gravé sur ton totem !</Text>
-              </View>
+        </View>
             )}
           </View>
           
@@ -433,14 +451,25 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
             </View>
           )}
         </TouchableOpacity>
-      </Animated.View>
+    </Animated.View>
       
       {/* Utilisation du OverlayPortal pour afficher en plein écran */}
       {showDetails && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+          }}
+        >
         <ExerciseDetails 
           exercise={exercise} 
           onClose={closeDetails} 
         />
+        </View>
       )}
     </>
   );
@@ -577,6 +606,7 @@ const styles = StyleSheet.create({
   detailScroll: {
     flex: 1,
     backgroundColor: COLORS.background,
+    position: 'relative',
   },
   detailScrollContent: {
     padding: 20,

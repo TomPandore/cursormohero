@@ -12,10 +12,11 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
-import { FONTS, SPACING } from '@/constants/Layout';
+import { FONTS, SPACING, BORDER_RADIUS } from '@/constants/Layout';
 import ProgramCard from '@/components/ProgramCard';
 import { supabase } from '@/lib/supabase';
 import { useProgram } from '@/context/ProgramContext';
+import { useAuth } from '@/context/AuthContext';
 
 // Type brut depuis Supabase
 interface Program {
@@ -26,6 +27,7 @@ interface Program {
   duree_jours: number;
   type: 'Découverte' | 'Premium';
   tags: string[];
+  clan_id?: string;
 }
 
 // Type attendu par la carte
@@ -46,6 +48,11 @@ interface ProgramCardModel {
   };
 }
 
+interface ClanInfo {
+  id: string;
+  nom_clan: string;
+}
+
 export default function PathsScreen() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,10 +60,32 @@ export default function PathsScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const { currentProgram, selectProgram } = useProgram();
+  const { user } = useAuth();
+  const [clanInfo, setClanInfo] = useState<ClanInfo | null>(null);
 
   useEffect(() => {
     fetchPrograms();
-  }, []);
+    if (user?.clanId) {
+      fetchClanInfo();
+    }
+  }, [user?.clanId]);
+
+  const fetchClanInfo = async () => {
+    if (!user?.clanId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('clans')
+        .select('id, nom_clan')
+        .eq('id', user.clanId)
+        .single();
+        
+      if (error) throw error;
+      if (data) setClanInfo(data);
+    } catch (err) {
+      console.error('Error fetching clan info:', err);
+    }
+  };
 
   const fetchPrograms = async () => {
     try {
@@ -204,6 +233,39 @@ export default function PathsScreen() {
           );
         })}
       </View>
+      
+      {clanInfo && (
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>L'HÉRITAGE {clanInfo.nom_clan.toUpperCase()}</Text>
+          <Text style={styles.sectionDescription}>
+            Programmes spécifiques pour les membres du clan {clanInfo.nom_clan}.
+          </Text>
+          
+          {programs
+            .filter(p => p.clan_id === user?.clanId)
+            .map(toCardModel)
+            .map(program => {
+              const isSelected = isProgramSelected(program.id);
+              
+              return (
+                <ProgramCard
+                  key={program.id}
+                  program={program}
+                  onPress={handleProgramPress}
+                  isSelected={isSelected}
+                />
+              );
+            })}
+            
+          {programs.filter(p => p.clan_id === user?.clanId).length === 0 && (
+            <View style={styles.emptyStateContainer}>
+              <Text style={styles.emptyText}>
+                Aucun programme spécifique disponible pour votre clan pour le moment.
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -305,5 +367,13 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+  },
+  emptyStateContainer: {
+    padding: SPACING.lg,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.md,
   },
 });
