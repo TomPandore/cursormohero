@@ -19,6 +19,7 @@
     "@react-navigation/native": "^7.0.14",
     "@supabase/gotrue-js": "^2.69.1",
     "@supabase/postgrest-js": "^1.19.4",
+    "@supabase/supabase-js": "^2.49.4",
     "cross-fetch": "^4.1.0",
     "expo": "53.0.9",
     "expo-av": "~15.1.4",
@@ -31,6 +32,7 @@
     "expo-linking": "~7.1.5",
     "expo-router": "~5.0.7",
     "expo-secure-store": "~14.2.3",
+    "expo-speech": "~13.1.7",
     "expo-splash-screen": "~0.30.6",
     "expo-status-bar": "~2.2.2",
     "expo-symbols": "~0.4.3",
@@ -47,8 +49,7 @@
     "react-native-svg": "15.11.2",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.20.0",
-    "react-native-webview": "13.13.5",
-    "expo-speech": "~13.1.7"
+    "react-native-webview": "13.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

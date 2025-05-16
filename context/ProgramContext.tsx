@@ -2,7 +2,10 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { Program, DailyRitual, UserProgram } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
-import { markDayAsCompleted } from '@/lib/statsUtils';
+import { markDayAsCompleted, updateExerciseStats } from '@/lib/statsUtils';
+import { Platform } from 'react-native';
+import { isSameDay, addDays } from '@/lib/dateUtils';
+import { User } from '@/types';
 
 interface ProgramContextProps {
   programs: Program[];
@@ -776,7 +779,7 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         if (countError) {
           console.error('Erreur lors de la vérification de l\'existence de la progression:', countError);
           return;
-      }
+        }
         
         if (count && count > 0) {
           // Update si existe
@@ -800,6 +803,10 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       } else {
         console.log('Progression sauvegardée avec succès:', data);
       }
+      
+      // NOUVELLE PARTIE: Mettre à jour les statistiques dans le profil
+      await updateExerciseStats(user.id, exerciseId, reps);
+      
     } catch (error) {
       console.error('Erreur générale lors de la mise à jour de la progression:', error);
       getCurrentDayRitual();

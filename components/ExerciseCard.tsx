@@ -352,68 +352,78 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
   return (
     <>
       <Animated.View style={[styles.container, animatedStyle, isCompleted && styles.completedContainer]}>
-      <View style={styles.content}>
-        <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: exercise.imageUrl }} 
-            style={styles.image} 
-            resizeMode="cover"
-          />
+        <TouchableOpacity 
+          style={styles.content}
+          onPress={openDetails}
+          activeOpacity={0.7}
+        >
+          <View style={styles.imageContainer}>
+            <Image 
+              source={{ uri: exercise.imageUrl }} 
+              style={styles.image} 
+              resizeMode="cover"
+            />
             {exercise.videoUrl && (
-          <TouchableOpacity 
-            style={styles.videoButton}
-                onPress={openDetails}
-          >
-            <Play color={COLORS.text} size={20} />
-          </TouchableOpacity>
+              <View style={styles.videoIndicator}>
+                <Play color={COLORS.text} size={20} />
+              </View>
             )}
-        </View>
+          </View>
         
-        <View style={styles.detailsContainer}>
+          <View style={styles.detailsContainer}>
             <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
               {exercise.name}
             </Text>
           
-          <View style={styles.progressContainer}>
+            <View style={styles.progressContainer}>
               <View style={styles.progressRow}>
                 <View style={styles.progressBar}>
                   <ProgressBar progress={progress} height={8} />
                 </View>
-            <Text style={styles.progressText}>
-              {exercise.completedReps} / {exercise.targetReps}
-            </Text>
+                <Text style={styles.progressText}>
+                  {exercise.completedReps} / {exercise.targetReps}
+                </Text>
               </View>
-          </View>
+            </View>
           
             {!isCompleted && (
-          <View style={styles.buttonsContainer}>
-            <Pressable 
-              style={styles.repButton}
-              onPress={() => addReps(1)}
-            >
-              <Text style={styles.repButtonText}>+1</Text>
-            </Pressable>
+              <View style={styles.buttonsContainer}>
+                <Pressable 
+                  style={styles.repButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    addReps(1);
+                  }}
+                >
+                  <Text style={styles.repButtonText}>+1</Text>
+                </Pressable>
             
-            <Pressable 
-              style={styles.repButton}
-              onPress={() => addReps(5)}
-            >
-              <Text style={styles.repButtonText}>+5</Text>
-            </Pressable>
+                <Pressable 
+                  style={styles.repButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    addReps(5);
+                  }}
+                >
+                  <Text style={styles.repButtonText}>+5</Text>
+                </Pressable>
             
-            <Pressable 
-              style={styles.repButton}
-              onPress={() => addReps(10)}
-            >
-              <Text style={styles.repButtonText}>+10</Text>
-            </Pressable>
-          </View>
+                <Pressable 
+                  style={styles.repButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    addReps(10);
+                  }}
+                >
+                  <Text style={styles.repButtonText}>+10</Text>
+                </Pressable>
+              </View>
             )}
             
             {isCompleted && (
               <View style={styles.completedTextContainer}>
                 <Text style={styles.completedText}>Rituel gravé sur ton totem !</Text>
-        </View>
+              </View>
             )}
           </View>
           
@@ -422,8 +432,8 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
               <Check color={COLORS.text} size={20} />
             </View>
           )}
-        </View>
-    </Animated.View>
+        </TouchableOpacity>
+      </Animated.View>
       
       {/* Utilisation du OverlayPortal pour afficher en plein écran */}
       {showDetails && (
@@ -463,13 +473,18 @@ const styles = StyleSheet.create({
     left: 0,
     bottom: 0,
   },
-  videoButton: {
+  videoIndicator: {
     position: 'absolute',
-    bottom: SPACING.xs,
-    right: SPACING.xs,
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -15 }, { translateY: -15 }],
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: BORDER_RADIUS.round,
     padding: SPACING.xs,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   completedBadge: {
     position: 'absolute',

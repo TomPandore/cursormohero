@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import ProgressBar from '@/components/ProgressBar';
@@ -44,12 +45,25 @@ export default function TotemScreen() {
     totalBreathingExercises: 0
   });
   
+  // Vérifier si l'écran est actuellement focalisé
+  const isFocused = useIsFocused();
+  
+  // Charger les données du clan lorsque l'utilisateur change
   useEffect(() => {
     if (user?.clanId) {
       fetchClanData();
-      loadUserStats();
     }
   }, [user?.clanId]);
+  
+  // Charger les statistiques utilisateur à chaque fois que l'écran est affiché
+  // et lorsque l'utilisateur ou le rituel actuel change
+  useEffect(() => {
+    if (user?.id && (currentRitual || isFocused)) {
+      loadUserStats();
+      console.log("Chargement des statistiques utilisateur déclenché", 
+        isFocused ? "par focus" : "par changement de rituel");
+    }
+  }, [user?.id, currentRitual, isFocused]);
 
   const fetchClanData = async () => {
     try {
@@ -70,6 +84,7 @@ export default function TotemScreen() {
     if (!user?.id) return;
     
     try {
+      console.log('Début du chargement des statistiques utilisateur');
       const stats = await fetchUserStats(user.id);
       setUserStats(stats);
       console.log('Statistiques utilisateur chargées:', stats);

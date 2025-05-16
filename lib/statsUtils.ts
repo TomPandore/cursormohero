@@ -108,97 +108,38 @@ export const markDayAsCompleted = async (userId: string, clanId: string): Promis
 };
 
 /**
- * Récupère les statistiques d'un utilisateur
+ * Récupère les statistiques d'un utilisateur directement depuis son profil
  */
 export const fetchUserStats = async (userId: string): Promise<UserStats> => {
   try {
-    // Récupérer les informations de profil
+    console.log('Récupération des statistiques utilisateur depuis le profil:', userId);
+    
+    // Récupérer les informations de profil avec les statistiques
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('consecutive_days, total_days_completed')
+      .select('consecutive_days, total_days_completed, stats_pompes, stats_squats, stats_respiration')
       .eq('id', userId)
       .single();
     
     if (profileError) {
       console.error('Erreur lors de la récupération du profil:', profileError);
+      throw profileError;
     }
     
-    // Récupérer toutes les données de progression d'exercices de l'utilisateur
-    const { data: progressionData, error: progressionError } = await supabase
-      .from('progression_exercice')
-      .select(`
-        valeur_realisee,
-        exercice_id
-      `)
-      .eq('user_id', userId);
+    console.log('Données du profil récupérées:', profileData);
     
-    if (progressionError) {
-      console.error('Erreur lors de la récupération des progressions:', progressionError);
-    }
-    
-    // Si nous avons des données de progression, récupérer les détails des exercices correspondants
-    let totalPushups = 0;
-    let totalSquats = 0;
-    let totalBreathingExercises = 0;
-    
-    if (progressionData && progressionData.length > 0) {
-      const exerciceIds = [...new Set(progressionData.map(p => p.exercice_id))];
-      
-      const { data: exercicesData, error: exercicesError } = await supabase
-        .from('exercices')
-        .select('id, nom, type, categorie')
-        .in('id', exerciceIds);
-      
-      if (exercicesError) {
-        console.error('Erreur lors de la récupération des exercices:', exercicesError);
-      } else if (exercicesData) {
-        // Traiter chaque progression avec les infos d'exercice correspondantes
-        progressionData.forEach(progression => {
-          const exercice = exercicesData.find(e => e.id === progression.exercice_id);
-          
-          if (exercice) {
-            // Vérifier d'abord la catégorie explicite si disponible
-            if (exercice.categorie) {
-              const categorie = exercice.categorie.toLowerCase();
-              if (categorie === 'pompes' || categorie === 'push-up' || categorie === 'pectoraux') {
-                totalPushups += progression.valeur_realisee;
-              } else if (categorie === 'squats' || categorie === 'jambes' || categorie === 'legs') {
-                totalSquats += progression.valeur_realisee;
-              } else if (categorie === 'respiration' || categorie === 'breathing' || categorie === 'meditation') {
-                totalBreathingExercises += progression.valeur_realisee;
-              }
-            } else {
-              // Fallback: utiliser nom et type pour déduire la catégorie
-              const nomExercice = exercice.nom?.toLowerCase() || '';
-              const typeExercice = exercice.type?.toLowerCase() || '';
-              
-              if (nomExercice.includes('pompe') || typeExercice.includes('pompe') || 
-                  nomExercice.includes('push-up') || typeExercice === 'push-up' || 
-                  nomExercice.includes('pectoraux')) {
-                totalPushups += progression.valeur_realisee;
-              } else if (nomExercice.includes('squat') || typeExercice.includes('squat') || 
-                          nomExercice.includes('jambe') || typeExercice.includes('jambe') || 
-                          nomExercice.includes('leg') || typeExercice.includes('leg')) {
-                totalSquats += progression.valeur_realisee;
-              } else if (nomExercice.includes('respiration') || nomExercice.includes('souffle') || 
-                          typeExercice.includes('respiration') || typeExercice.includes('breathing') || 
-                          nomExercice.includes('breathing') || nomExercice.includes('méditation') || 
-                          typeExercice.includes('méditation')) {
-                totalBreathingExercises += progression.valeur_realisee;
-              }
-            }
-          }
-        });
-      }
-    }
-    
-    return {
+    // Utiliser les nouvelles colonnes de statistiques
+    const stats = {
       consecutiveDays: profileData?.consecutive_days || 0,
       totalDaysCompleted: profileData?.total_days_completed || 0,
-      totalPushups,
-      totalSquats,
-      totalBreathingExercises
+      totalPushups: profileData?.stats_pompes || 0,
+      totalSquats: profileData?.stats_squats || 0,
+      totalBreathingExercises: profileData?.stats_respiration || 0
     };
+    
+    console.log('Statistiques utilisateur:', stats);
+    
+    return stats;
   } catch (error) {
     console.error('Erreur inattendue lors de la récupération des statistiques:', error);
     return {
@@ -208,5 +149,104 @@ export const fetchUserStats = async (userId: string): Promise<UserStats> => {
       totalSquats: 0,
       totalBreathingExercises: 0
     };
+  }
+};
+
+/**
+ * Met à jour les statistiques d'exercices dans le profil utilisateur
+ */
+export const updateExerciseStats = async (userId: string, exerciseId: string, reps: number): Promise<boolean> => {
+  try {
+    console.log(`Mise à jour des statistiques pour l'exercice ${exerciseId}, +${reps} répétitions`);
+    
+    // 1. Récupérer l'information sur l'exercice
+    const { data: exerciseData, error: exerciseError } = await supabase
+      .from('exercices')
+      .select('id, nom, type, categorie')
+      .eq('id', exerciseId)
+      .single();
+    
+    if (exerciseError) {
+      console.error('Erreur lors de la récupération des informations de l\'exercice:', exerciseError);
+      return false;
+    }
+    
+    // 2. Déterminer quel type de statistique mettre à jour
+    const type = (exerciseData.type || '').toLowerCase();
+    const categorie = (exerciseData.categorie || '').toLowerCase();
+    const nom = (exerciseData.nom || '').toLowerCase();
+    
+    let statsField = null;
+    
+    // Utiliser tous les critères pour déterminer le type d'exercice
+    if (
+      categorie === 'pompes' || 
+      type === 'push' || 
+      type.includes('pompe') || 
+      nom.includes('pompe') || 
+      nom.includes('push-up')
+    ) {
+      statsField = 'stats_pompes';
+    } else if (
+      categorie === 'squats' || 
+      type === 'legs' || 
+      type.includes('squat') || 
+      nom.includes('squat') || 
+      nom.includes('jambe')
+    ) {
+      statsField = 'stats_squats';
+    } else if (
+      categorie === 'respiration' || 
+      type === 'breathing' || 
+      type.includes('respiration') || 
+      nom.includes('respiration') || 
+      nom.includes('souffle')
+    ) {
+      statsField = 'stats_respiration';
+    } else {
+      console.log('Type d\'exercice non reconnu, pas de statistique à mettre à jour');
+      return false;
+    }
+    
+    console.log(`Type d'exercice identifié: ${statsField}`);
+    
+    // 3. Récupérer la valeur actuelle
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select(statsField)
+      .eq('id', userId)
+      .single();
+    
+    if (profileError) {
+      console.error('Erreur lors de la récupération du profil:', profileError);
+      return false;
+    }
+    
+    // 4. Calculer la nouvelle valeur
+    const currentValue = profileData[statsField] || 0;
+    const newValue = currentValue + reps;
+    
+    console.log(`Valeur actuelle: ${currentValue}, nouvelle valeur: ${newValue}`);
+    
+    // 5. Mettre à jour le profil
+    const updateData: Record<string, number> = {};
+    updateData[statsField] = newValue;
+    
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId);
+    
+    if (updateError) {
+      console.error('Erreur lors de la mise à jour des statistiques:', updateError);
+      return false;
+    }
+    
+    console.log('Statistiques mises à jour avec succès');
+    return true;
+    
+  } catch (error) {
+    console.error('Erreur inattendue lors de la mise à jour des statistiques:', error);
+    return false;
   }
 }; 
