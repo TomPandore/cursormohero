@@ -65,8 +65,8 @@ export default function ProgramDetailScreen() {
         { cancelable: true }
       );
     } else {
-      await selectProgram(program.id);
-      router.replace('/(app)/(tabs)/ritual');
+    await selectProgram(program.id);
+    router.replace('/(app)/(tabs)/ritual');
     }
   };
   

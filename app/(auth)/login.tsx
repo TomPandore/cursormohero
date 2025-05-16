@@ -50,66 +50,66 @@ export default function LoginScreen() {
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.header}>
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.header}>
               <Image 
                 source={require('@/assets/logo.png')}
                 style={styles.logo}
                 resizeMode="contain"
               />
-            </View>
+          </View>
 
-            <View style={styles.formContainer}>
+          <View style={styles.formContainer}>
               <Text style={styles.questionText}>
                 Bienvenue dans la tribu
               </Text>
-              
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
                   placeholder="ton@email.com"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ton mot de passe"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
-              <Button
-                title="Se connecter"
-                onPress={handleLogin}
-                isLoading={isLoading}
-                fullWidth
-                style={styles.button}
+                placeholderTextColor={COLORS.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
-
-              <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>
-                  Pas encore de compte ?
-                </Text>
-                <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-                  <Text style={styles.signupLink}>Inscrivez-vous</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </ScrollView>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Mot de passe</Text>
+              <TextInput
+                style={styles.input}
+                  placeholder="Ton mot de passe"
+                placeholderTextColor={COLORS.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <Button
+              title="Se connecter"
+              onPress={handleLogin}
+              isLoading={isLoading}
+              fullWidth
+                style={styles.button}
+            />
+
+            <View style={styles.signupContainer}>
+              <Text style={styles.signupText}>
+                Pas encore de compte ?
+              </Text>
+                <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+                <Text style={styles.signupLink}>Inscrivez-vous</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
     </ImageBackground>

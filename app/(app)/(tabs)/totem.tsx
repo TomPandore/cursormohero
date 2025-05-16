@@ -34,7 +34,7 @@ interface ClanData {
 export default function TotemScreen() {
   console.log("Rendu du composant TotemScreen");
   const { user } = useAuth();
-  const { currentProgram, userPrograms } = useProgram();
+  const { currentProgram, userPrograms, currentRitual } = useProgram();
   const [clanData, setClanData] = useState<ClanData | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
     consecutiveDays: 0,
@@ -90,9 +90,45 @@ export default function TotemScreen() {
     const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
     if (!userProgram) return 0;
     
-    if (userProgram.currentDay <= 1) return 0;
+    // Si l'utilisateur est au jour 1
+    if (userProgram.currentDay <= 1) {
+      // Vérifier si le rituel du jour est complété
+      if (currentRitual && currentRitual.exercises.length > 0) {
+        const totalExercises = currentRitual.exercises.length;
+        const completedExercises = currentRitual.exercises.filter(
+          ex => ex.completedReps >= ex.targetReps
+        ).length;
+        
+        // Calculer le pourcentage de progression pour le jour 1
+        // Ce pourcentage représentera une fraction du premier jour du programme
+        if (totalExercises > 0) {
+          const dayProgress = completedExercises / totalExercises;
+          // Nous divisons par la durée totale pour obtenir la progression "par jour"
+          return dayProgress / currentProgram.duration;
+        }
+      }
+      return 0;
+    }
     
-    return (userProgram.currentDay - 1) / (currentProgram.duration - 1);
+    // Pour les jours après le jour 1
+    // Calculer la progression basée sur les jours complétés
+    const baseProgress = (userProgram.currentDay - 1) / currentProgram.duration;
+    
+    // Ajouter la progression du jour en cours si des exercices sont complétés
+    if (currentRitual && currentRitual.exercises.length > 0) {
+      const totalExercises = currentRitual.exercises.length;
+      const completedExercises = currentRitual.exercises.filter(
+        ex => ex.completedReps >= ex.targetReps
+      ).length;
+      
+      if (totalExercises > 0) {
+        const dayProgress = completedExercises / totalExercises;
+        // Ajouter la progression du jour en cours (pondérée par la durée du programme)
+        return baseProgress + (dayProgress / currentProgram.duration);
+      }
+    }
+    
+    return baseProgress;
   };
 
   const handleChangeClan = () => {
@@ -155,20 +191,20 @@ export default function TotemScreen() {
                   <Wind size={18} color={getClanColor()} />
                   <Text style={styles.badgeValue}>{userStats.totalBreathingExercises}</Text>
                   <Text style={styles.badgeLabel}>Souffle maîtrisé</Text>
-                </View>
+                  </View>
               </View>
             </View>
           </LinearGradient>
         </ImageBackground>
-      </View>
-      
+              </View>
+              
       <View style={styles.programOuterContainer}>
-        {currentProgram ? (
-          <View style={styles.programContainer}>
-            <ProgressBar 
-              progress={getCurrentProgramProgress()} 
-              showPercentage 
-              color={getClanColor()}
+              {currentProgram ? (
+                <View style={styles.programContainer}>
+                  <ProgressBar 
+                    progress={getCurrentProgramProgress()} 
+                    showPercentage 
+                    color={getClanColor()}
               percentagePosition="inside"
               title={
                 <View style={styles.programTitleContainer}>
@@ -177,21 +213,21 @@ export default function TotemScreen() {
                 </View>
               }
               height={20}
-            />
-          </View>
-        ) : (
-          <View style={styles.noProgramContainer}>
-            <Text style={styles.noProgramText}>
-              Aucun programme en cours
-            </Text>
-            <Button
-              title="Choisir un programme"
-              onPress={() => router.push('/(app)/(tabs)/voies')}
-              size="small"
-              style={styles.programButton}
-            />
-          </View>
-        )}
+                  />
+                </View>
+              ) : (
+                <View style={styles.noProgramContainer}>
+                  <Text style={styles.noProgramText}>
+                    Aucun programme en cours
+                  </Text>
+                  <Button
+                    title="Choisir un programme"
+                    onPress={() => router.push('/(app)/(tabs)/voies')}
+                    size="small"
+                    style={styles.programButton}
+                  />
+                </View>
+              )}
       </View>
       
       <View style={styles.clanInfoContainer}>
@@ -223,13 +259,13 @@ export default function TotemScreen() {
             Dans cette version de l'application, le choix du clan n'influence pas votre parcours.
           </Text>
           
-          <TouchableOpacity 
+            <TouchableOpacity 
             style={styles.changeClanLink}
             onPress={handleChangeClan}
-          >
+            >
             <Text style={[styles.changeClanText, { color: getClanColor() }]}>Changer de clan</Text>
             <ChevronRight size={16} color={getClanColor()} />
-          </TouchableOpacity>
+            </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -311,6 +347,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexWrap: 'wrap',
+    marginBottom: 10,
   },
   programTitlePrefix: {
     ...FONTS.subheading,

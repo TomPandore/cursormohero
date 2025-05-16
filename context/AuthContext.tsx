@@ -254,12 +254,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw profileError;
           }
 
-          const userData: User = {
-            id: authData.user.id,
-            name: name,
-            email: email,
-            clanId: null,
-            totalDaysCompleted: 0,
+        const userData: User = {
+          id: authData.user.id,
+          name: name,
+          email: email,
+          clanId: null,
+          totalDaysCompleted: 0,
             onboardingDone: false
           };
           
@@ -285,9 +285,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 clanId: existingUser.clan_id,
                 totalDaysCompleted: progress?.totalCompletedDays || 0,
                 onboardingDone: existingUser.onboarding_done || false
-              };
-              
-              setUser(userData);
+        };
+        
+        setUser(userData);
               
               // Toujours rediriger vers l'onboarding, peu importe l'état précédent
               router.replace('/(auth)/onboarding');

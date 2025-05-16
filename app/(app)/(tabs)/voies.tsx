@@ -53,7 +53,7 @@ export default function PathsScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const { currentProgram, selectProgram } = useProgram();
-  
+
   useEffect(() => {
     fetchPrograms();
   }, []);
@@ -68,7 +68,7 @@ export default function PathsScreen() {
         .select('*');
 
       if (error) throw error;
-      
+
       setPrograms(data || []);
     } catch (err) {
       console.error('Error fetching programs:', err);
@@ -162,9 +162,9 @@ export default function PathsScreen() {
             
             return (
               <View key={program.id} style={styles.cardContainer}>
-                <ProgramCard
-                  program={program}
-                  onPress={handleProgramPress}
+          <ProgramCard
+            program={program}
+            onPress={handleProgramPress}
                   isSelected={isSelected}
                 />
               </View>
@@ -180,8 +180,8 @@ export default function PathsScreen() {
                 styles.paginationDot,
                 index === activeIndex && styles.paginationDotActive
               ]}
-            />
-          ))}
+          />
+        ))}
         </View>
       </View>
 
@@ -195,12 +195,12 @@ export default function PathsScreen() {
           const isSelected = isProgramSelected(program.id);
           
           return (
-            <ProgramCard
-              key={program.id}
-              program={program}
-              onPress={handleProgramPress}
+          <ProgramCard
+            key={program.id}
+            program={program}
+            onPress={handleProgramPress}
               isSelected={isSelected}
-            />
+          />
           );
         })}
       </View>

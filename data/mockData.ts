@@ -107,7 +107,7 @@ const mockExercises: Exercise[] = [
   {
     id: 'squats',
     name: 'Squats Profonds',
-    description: 'Accroupissement complet avec alignement naturel',
+    description: 'Tenez-vous debout avec les pieds légèrement plus écartés que la largeur des épaules. Abaissez-vous en pliant les genoux et les hanches, comme si vous alliez vous asseoir sur une chaise invisible. Maintenez le dos droit et les talons au sol. Descendez jusqu\'à ce que vos cuisses soient parallèles au sol, puis remontez en poussant à travers vos talons.',
     imageUrl: 'https://images.pexels.com/photos/4498482/pexels-photo-4498482.jpeg',
     videoUrl: 'https://example.com/videos/squats.mp4',
     targetReps: 100,
@@ -116,7 +116,7 @@ const mockExercises: Exercise[] = [
   {
     id: 'pushups',
     name: 'Pompes',
-    description: 'Pompes avec engagement du core et alignement parfait',
+    description: 'Placez vos mains au sol à la largeur des épaules. Étendez vos jambes derrière vous pour former une ligne droite de la tête aux talons. Abaissez votre corps en pliant les coudes, en gardant les bras près du corps. Descendez jusqu\'à ce que votre poitrine soit près du sol. Poussez avec vos bras pour revenir à la position de départ.',
     imageUrl: 'https://images.pexels.com/photos/176782/pexels-photo-176782.jpeg',
     videoUrl: 'https://example.com/videos/pushups.mp4',
     targetReps: 30,
@@ -125,7 +125,7 @@ const mockExercises: Exercise[] = [
   {
     id: 'plank',
     name: 'Planche Active',
-    description: 'Maintien en position de planche avec engagement maximal',
+    description: 'Positionnez-vous face au sol en appui sur vos avant-bras et vos orteils. Alignez votre corps pour former une ligne droite de la tête aux talons. Contractez vos abdominaux pour stabiliser votre colonne vertébrale. Ne laissez pas vos hanches s\'affaisser ou se lever. Respirez normalement et maintenez cette position aussi longtemps que possible.',
     imageUrl: 'https://images.pexels.com/photos/866023/pexels-photo-866023.jpeg',
     videoUrl: 'https://example.com/videos/plank.mp4',
     targetReps: 120, // seconds
@@ -134,7 +134,7 @@ const mockExercises: Exercise[] = [
   {
     id: 'breath',
     name: 'Respiration Tribale',
-    description: 'Technique de respiration profonde avec rétention',
+    description: 'Asseyez-vous confortablement avec le dos droit. Inspirez profondément par le nez en comptant jusqu\'à 4, en remplissant d\'abord votre ventre puis votre poitrine. Retenez votre souffle pendant 4 secondes. Expirez lentement par la bouche en comptant jusqu\'à 6, en vidant complètement vos poumons. Répétez cette séquence en restant concentré sur chaque respiration.',
     imageUrl: 'https://images.pexels.com/photos/3771115/pexels-photo-3771115.jpeg',
     videoUrl: 'https://example.com/videos/breathing.mp4',
     targetReps: 30,
@@ -143,7 +143,7 @@ const mockExercises: Exercise[] = [
   {
     id: 'burpees',
     name: 'Burpees',
-    description: 'Mouvement explosif combinant squat, pompe et saut',
+    description: 'Commencez debout, les pieds écartés à la largeur des épaules. Descendez en position accroupie et placez vos mains au sol. Lancez vos pieds en arrière pour vous retrouver en position de planche. Effectuez une pompe en abaissant votre poitrine vers le sol. Remontez et ramenez vos pieds vers vos mains d\'un bond. Sautez vers le haut avec les bras tendus au-dessus de la tête.',
     imageUrl: 'https://images.pexels.com/photos/28080/pexels-photo.jpg',
     videoUrl: 'https://example.com/videos/burpees.mp4',
     targetReps: 50,
@@ -152,7 +152,7 @@ const mockExercises: Exercise[] = [
   {
     id: 'lunges',
     name: 'Fentes Dynamiques',
-    description: 'Fentes avec rotation du tronc et mobilité des hanches',
+    description: 'Tenez-vous droit avec les pieds à la largeur des hanches. Faites un grand pas en avant avec votre jambe droite. Abaissez votre corps jusqu\'à ce que votre cuisse droite soit parallèle au sol et que votre genou gauche soit près du sol. Faites une rotation de votre tronc vers la droite pour engager vos muscles obliques. Poussez sur votre pied droit pour revenir à la position de départ. Répétez avec la jambe gauche.',
     imageUrl: 'https://images.pexels.com/photos/6456143/pexels-photo-6456143.jpeg',
     videoUrl: 'https://example.com/videos/lunges.mp4',
     targetReps: 60,

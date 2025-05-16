@@ -28,7 +28,7 @@ import { DailyRitual, Exercise } from '@/types';
 export default function DailyRitualScreen() {
   const { 
     currentProgram, 
-    userPrograms,
+    userPrograms, 
     currentRitual,
     getCurrentDayRitual, 
     updateExerciseProgress,
@@ -297,11 +297,11 @@ export default function DailyRitualScreen() {
             return aCompleted ? 1 : -1;
           })
           .map((exercise: Exercise) => (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              onUpdateProgress={updateExerciseProgress}
-            />
+        <ExerciseCard
+          key={exercise.id}
+          exercise={exercise}
+          onUpdateProgress={updateExerciseProgress}
+        />
           ))
       ) : (
         <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
