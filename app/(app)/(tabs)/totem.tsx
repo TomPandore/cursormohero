@@ -20,7 +20,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useProgram } from '@/context/ProgramContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserStats, UserStats } from '@/lib/statsUtils';
-import { ChevronRight, Flame, Dumbbell, Activity, Wind } from 'lucide-react-native';
+import { ChevronRight, Flame, Dumbbell, Activity, Wind, Pause, Play } from 'lucide-react-native';
+import { Audio } from 'expo-av';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,6 +45,10 @@ export default function TotemScreen() {
     totalSquats: 0,
     totalBreathingExercises: 0
   });
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [position, setPosition] = useState(0);
   
   // Vérifier si l'écran est actuellement focalisé
   const isFocused = useIsFocused();
@@ -64,6 +69,36 @@ export default function TotemScreen() {
         isFocused ? "par focus" : "par changement de rituel");
     }
   }, [user?.id, currentRitual, isFocused]);
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          console.log('Unloading Sound');
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
+  // Mettre à jour la position toutes les 100ms
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    
+    if (isPlaying && sound) {
+      interval = setInterval(async () => {
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded) {
+          setPosition(status.positionMillis);
+          setDuration(status.durationMillis || 0);
+        }
+      }, 100);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isPlaying, sound]);
 
   const fetchClanData = async () => {
     try {
@@ -166,6 +201,39 @@ export default function TotemScreen() {
     }
   };
 
+  async function playSound() {
+    console.log('Loading Sound');
+    const { sound } = await Audio.Sound.createAsync(
+      require('@/assets/music/mohero-hymne.mp3'),
+      { shouldPlay: true },
+      onPlaybackStatusUpdate
+    );
+    setSound(sound);
+    setIsPlaying(true);
+  }
+
+  async function pauseSound() {
+    if (sound) {
+      await sound.pauseAsync();
+      setIsPlaying(false);
+    }
+  }
+
+  const onPlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded) {
+      setPosition(status.positionMillis);
+      setDuration(status.durationMillis || 0);
+      setIsPlaying(status.isPlaying);
+    }
+  };
+
+  const formatTime = (milliseconds: number) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.totemContainer}>
@@ -243,6 +311,39 @@ export default function TotemScreen() {
                   />
                 </View>
               )}
+      </View>
+      
+      <View style={styles.hymneContainer}>
+        <View style={styles.hymneCard}>
+          <Text style={styles.hymneTitle}>ÉCOUTER L'HYMNE DE LA TRIBU</Text>
+          
+          <View style={styles.playerContainer}>
+            <TouchableOpacity 
+              style={[styles.playButton, { backgroundColor: getClanColor() }]}
+              onPress={isPlaying ? pauseSound : playSound}
+            >
+              {isPlaying ? (
+                <Pause color="#FFFFFF" size={20} />
+              ) : (
+                <Play color="#FFFFFF" size={20} />
+              )}
+            </TouchableOpacity>
+            <View style={styles.progressBarContainer}>
+              <View 
+                style={[
+                  styles.progressBar, 
+                  { 
+                    backgroundColor: getClanColor(),
+                    width: `${(position / duration) * 100}%`
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={styles.timeText}>
+              {formatTime(position)} / {formatTime(duration)}
+            </Text>
+          </View>
+        </View>
       </View>
       
       <View style={styles.clanInfoContainer}>
@@ -528,5 +629,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginBottom: SPACING.md,
+  },
+  hymneContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.xl,
+  },
+  hymneCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  hymneTitle: {
+    ...FONTS.subheading,
+    color: COLORS.text,
+    fontSize: 14,
+    letterSpacing: 1,
+    marginBottom: SPACING.md,
+  },
+  playerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm,
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginRight: SPACING.sm,
+  },
+  progressBar: {
+    height: '100%',
+  },
+  timeText: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    minWidth: 80,
+    textAlign: 'right',
   },
 });

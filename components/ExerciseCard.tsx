@@ -179,9 +179,12 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
       </TouchableOpacity>
       
       <View style={{ 
-        height: dimensions.height * 0.4, 
         width: '100%',
-        position: 'relative'
+        aspectRatio: 16/9,
+        backgroundColor: '#000',
+        position: 'relative',
+        alignSelf: 'center',
+        marginBottom: 10,
       }}>
         {exercise.videoUrl ? (
           <>
@@ -190,12 +193,17 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
               style={{ width: '100%', height: '100%' }}
               source={{ uri: exercise.videoUrl }}
               useNativeControls={false}
-              resizeMode={ResizeMode.COVER}
+              resizeMode={ResizeMode.CONTAIN}
               isLooping
               shouldPlay={true}
               onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
               onLoad={handleVideoLoad}
-              onError={() => handleVideoError("Erreur de chargement de la vidéo")}
+              onError={(error: any) => {
+                console.error('Erreur détaillée de la vidéo:', error);
+                handleVideoError("Erreur de chargement de la vidéo. Veuillez réessayer.");
+              }}
+              onLoadStart={() => console.log('Début du chargement de la vidéo')}
+              onReadyForDisplay={() => console.log('Vidéo prête à être affichée')}
             />
             <TouchableOpacity
               style={styles.playButton}

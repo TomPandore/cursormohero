@@ -37,18 +37,19 @@ const slides = [
   },
   {
     id: '3',
-    title: 'Choisis ton Clan',
-    content: 'Ton clan reflète ta vraie nature.\nForce brute ? Explosivité ? Fluidité ?\nChaque clan transforme ton corps… \net ton esprit.',
-    image: require('@/assets/slide3.webp'),
-    background: 'rgba(0,0,0,0.7)'
-  },
-  {
-    id: '4',
     title: 'Trace ta voie',
     content: 'Ce que tu fais ici ne disparaîtra jamais. Chaque effort grave une empreinte dans ton Totem. Engage-toi. Trace ta voie. Et n’oublie pas… le ciel n’est qu’un début.',
     image: require('@/assets/slide4.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
+  {
+    id: '4',
+    title: 'L\'initiation',
+    content: 'Avant toute chose, découvre les rituels MoHero. Accomplis ton premier jour.\nCe n’est qu’après ce rite que tu pourras embrasser ta véritable voie.',    
+    image: require('@/assets/initiation_scene.webp'), // ← Change si tu veux une image spécifique pour ce slide
+    background: 'rgba(0,0,0,0.7)'
+  },
+  
 ];
 
 export default function OnboardingScreen() {
@@ -130,7 +131,7 @@ export default function OnboardingScreen() {
                     </TouchableOpacity>
                   ) : (
                     <Button
-                      title="Commencer mon parcours"
+                      title="Découvrir l'initiation"
                       onPress={handleComplete}
                       style={styles.startButton}
                       isLoading={isLoading}
