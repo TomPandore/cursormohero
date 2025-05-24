@@ -114,7 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: profile.email,
           clanId: profile.clan_id,
           totalDaysCompleted: progress?.totalCompletedDays || 0,
-          onboardingDone: profile.onboarding_done || false
+          onboardingDone: profile.onboarding_done || false,
+          initiationCompleted: profile.initiation_completed || false
         };
         setUser(userData);
         
@@ -124,7 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         
-        // Si l'utilisateur a terminé l'onboarding mais n'a pas de clan, rediriger vers la sélection de clan
+        // Si l'onboarding est fait mais pas l'initiation, rediriger vers l'initiation
+        if (!profile.initiation_completed) {
+          router.replace('/(auth)/onboarding/initiation');
+          return;
+        }
+        
+        // Si l'initiation est faite mais pas de clan, rediriger vers la sélection de clan
         if (!profile.clan_id) {
           router.replace('/(auth)/onboarding/clan');
         } else {
@@ -165,7 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: profile.email,
             clanId: profile.clan_id,
             totalDaysCompleted: progress?.totalCompletedDays || 0,
-            onboardingDone: profile.onboarding_done || false
+            onboardingDone: profile.onboarding_done || false,
+            initiationCompleted: profile.initiation_completed || false
           };
           setUser(userData);
           
@@ -175,7 +183,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
           
-          // Si l'utilisateur a terminé l'onboarding mais n'a pas de clan, rediriger vers la sélection de clan
+          // Si l'onboarding est fait mais pas l'initiation, rediriger vers l'initiation
+          if (!profile.initiation_completed) {
+            router.replace('/(auth)/onboarding/initiation');
+            return;
+          }
+          
+          // Si l'initiation est faite mais pas de clan, rediriger vers la sélection de clan
           if (!profile.clan_id) {
             router.replace('/(auth)/onboarding/clan');
           } else {
@@ -228,7 +242,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email: existingProfile.email,
               clanId: existingProfile.clan_id,
               totalDaysCompleted: progress?.totalCompletedDays || 0,
-              onboardingDone: existingProfile.onboarding_done || false
+              onboardingDone: existingProfile.onboarding_done || false,
+              initiationCompleted: existingProfile.initiation_completed || false
             };
             
             setUser(userData);
@@ -260,7 +275,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: email,
           clanId: null,
           totalDaysCompleted: 0,
-            onboardingDone: false
+            onboardingDone: false,
+            initiationCompleted: false
           };
           
           setUser(userData);
@@ -284,7 +300,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: existingUser.email,
                 clanId: existingUser.clan_id,
                 totalDaysCompleted: progress?.totalCompletedDays || 0,
-                onboardingDone: existingUser.onboarding_done || false
+                onboardingDone: existingUser.onboarding_done || false,
+                initiationCompleted: existingUser.initiation_completed || false
         };
         
         setUser(userData);

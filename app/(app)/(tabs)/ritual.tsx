@@ -229,83 +229,93 @@ export default function DailyRitualScreen() {
   
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <Text style={styles.programName}>{currentProgram.title}</Text>
-        <Text style={styles.dayProgress}>{dayProgress}</Text>
-      </View>
-      
-      <Animated.View 
-        style={[
-          styles.quoteContainer, 
-          animatedStyle, 
-          isRitualComplete() && styles.completedQuoteContainer
-        ]}
+      <ImageBackground 
+        source={currentProgram.imageUrl ? { uri: currentProgram.imageUrl } : require('@/assets/slide1.webp')}
+        style={styles.headerBackground}
+        resizeMode="cover"
       >
-        <View style={styles.quoteContent}>
-          <Image 
-            source={require('@/assets/mentor-mohero.png')} 
-            style={[
-              styles.mentorImage,
-              isRitualComplete() && styles.completedMentorImage
-            ]}
-            resizeMode="contain"
-          />
-          <View style={styles.quoteTextContainer}>
-            {isRitualComplete() ? (
-              <>
-                <Text style={styles.quote}>
-                  <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
-                  <Text>{getMentorMessage()[1]}</Text>
-                </Text>
-                <Text style={styles.nextDayInfo}>
-                  Le jour suivant sera disponible à partir de minuit.
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.quote}>"{getMentorMessage()}"</Text>
-            )}
+        <View style={styles.headerOverlay}>
+          <View style={styles.headerContent}>
+            <Text style={styles.programTitle}>{currentProgram.title}</Text>
+            <Text style={styles.dayProgress}>{dayProgress}</Text>
           </View>
         </View>
-      </Animated.View>
-      
-      <View style={styles.progressContainer}>
-        <Text style={styles.progressTitle}>Progression du jour</Text>
-        <ProgressBar 
-          progress={calculateDailyProgress()} 
-          height={20} 
-          showPercentage 
-          percentagePosition="inside"
-        />
+      </ImageBackground>
+
+      <View style={styles.mainContent}>
+        <Animated.View 
+          style={[
+            styles.quoteContainer, 
+            animatedStyle, 
+            isRitualComplete() && styles.completedQuoteContainer
+          ]}
+        >
+          <View style={styles.quoteContent}>
+            <Image 
+              source={require('@/assets/mentor-mohero.png')} 
+              style={[
+                styles.mentorImage,
+                isRitualComplete() && styles.completedMentorImage
+              ]}
+              resizeMode="contain"
+            />
+            <View style={styles.quoteTextContainer}>
+              {isRitualComplete() ? (
+                <>
+                  <Text style={styles.quote}>
+                    <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
+                    <Text>{getMentorMessage()[1]}</Text>
+                  </Text>
+                  <Text style={styles.nextDayInfo}>
+                    Le jour suivant sera disponible à partir de minuit.
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.quote}>"{getMentorMessage()}"</Text>
+              )}
+            </View>
+          </View>
+        </Animated.View>
+        
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressTitle}>Progression du jour</Text>
+          <ProgressBar 
+            progress={calculateDailyProgress()} 
+            height={20} 
+            showPercentage 
+            percentagePosition="inside"
+          />
+        </View>
+        
+        <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
+        
+        {currentRitual.exercises && currentRitual.exercises.length > 0 ? (
+          currentRitual.exercises
+            // Trier les exercices : d'abord les non terminés, puis les terminés
+            .slice()
+            .sort((a, b) => {
+              const aCompleted = a.completedReps >= a.targetReps;
+              const bCompleted = b.completedReps >= b.targetReps;
+              
+              if (aCompleted === bCompleted) {
+                // Garder l'ordre d'origine si les deux sont terminés ou les deux sont non terminés
+                return 0;
+              }
+              
+              // Les non terminés d'abord (-1), les terminés ensuite (1)
+              return aCompleted ? 1 : -1;
+            })
+            .map((exercise: Exercise) => (
+          <ExerciseCard
+            key={exercise.id}
+            exercise={exercise}
+            onUpdateProgress={updateExerciseProgress}
+          />
+            ))
+        ) : (
+          <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
+        )}
       </View>
-      
-      <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
-      
-      {currentRitual.exercises && currentRitual.exercises.length > 0 ? (
-        currentRitual.exercises
-          // Trier les exercices : d'abord les non terminés, puis les terminés
-          .slice()
-          .sort((a, b) => {
-            const aCompleted = a.completedReps >= a.targetReps;
-            const bCompleted = b.completedReps >= b.targetReps;
-            
-            if (aCompleted === bCompleted) {
-              // Garder l'ordre d'origine si les deux sont terminés ou les deux sont non terminés
-              return 0;
-            }
-            
-            // Les non terminés d'abord (-1), les terminés ensuite (1)
-            return aCompleted ? 1 : -1;
-          })
-          .map((exercise: Exercise) => (
-        <ExerciseCard
-          key={exercise.id}
-          exercise={exercise}
-          onUpdateProgress={updateExerciseProgress}
-        />
-          ))
-      ) : (
-        <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
-      )}
     </ScrollView>
   );
 }
@@ -316,8 +326,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   contentContainer: {
+    flexGrow: 1,
+  },
+  headerBackground: {
+    height: 220,
+  },
+  headerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  headerContent: {
     padding: SPACING.lg,
-    paddingTop: SPACING.xl * 2,
+    alignItems: 'center',
+  },
+  programTitle: {
+    ...FONTS.heading,
+    color: COLORS.text,
+    fontSize: 24,
+    marginBottom: SPACING.xs,
+    textAlign: 'center',
+  },
+  dayProgress: {
+    ...FONTS.body,
+    color: COLORS.textSecondary,
+    fontSize: 14,
+  },
+  mainContent: {
+    padding: SPACING.lg,
   },
   noProgramContainer: {
     flex: 1,
@@ -367,19 +403,6 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     minWidth: 240,
-  },
-  header: {
-    marginBottom: SPACING.lg,
-  },
-  programName: {
-    ...FONTS.heading,
-    color: COLORS.primary,
-    fontSize: 26,
-    marginBottom: SPACING.xs,
-  },
-  dayProgress: {
-    ...FONTS.body,
-    color: COLORS.textSecondary,
   },
   quoteContainer: {
     backgroundColor: COLORS.card,

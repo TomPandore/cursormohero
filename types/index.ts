@@ -6,6 +6,7 @@ export interface User {
   totalDaysCompleted: number;
   currentProgramId?: string;
   onboardingDone?: boolean;
+  initiationCompleted?: boolean;
 }
 
 export interface Program {

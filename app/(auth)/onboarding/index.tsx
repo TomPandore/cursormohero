@@ -24,32 +24,31 @@ const slides = [
   {
     id: '1',
     title: 'MoHero, un héritage oublié',
-    content: 'Avant les salles, avant les chronos…\nIl y avait Mohero. Une tribu forgée par l’instinct, le feu, la terre. Ce n’était pas du sport. C’était une voie. Aujourd\'hui cette voie, c\'est la tienne.',
+    content: 'Avant les salles, avant les chronos…\nIl y avait Mohero. Une tribu forgée par l\'instinct, le feu, la terre. Ce n\'était pas du sport. C\'était une voie. Aujourd\'hui cette voie, c\'est la tienne.',
     image: require('@/assets/slide1.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
     id: '2',
     title: 'Bouge comme tu vis',
-    content: 'Ici, pas de séances à cocher. Chaque jour, tu t’éveilles par le mouvement. Chaque geste est un rite. Chaque effort est sacré. Ton corps doit être prêt. À tout. Toujours.',
+    content: 'Ici, pas de séances à cocher. Chaque jour, tu t\'éveilles par le mouvement. Chaque geste est un rite. Chaque effort est sacré. Ton corps doit être prêt. À tout. Toujours.',
     image: require('@/assets/slide2.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
     id: '3',
     title: 'Trace ta voie',
-    content: 'Ce que tu fais ici ne disparaîtra jamais. Chaque effort grave une empreinte dans ton Totem. Engage-toi. Trace ta voie. Et n’oublie pas… le ciel n’est qu’un début.',
+    content: 'Ce que tu fais ici ne disparaîtra jamais. Chaque effort grave une empreinte dans ton Totem. Engage-toi. Trace ta voie. Et n\'oublie pas… le ciel n\'est qu\'un début.',
     image: require('@/assets/slide4.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
     id: '4',
     title: 'L\'initiation',
-    content: 'Avant toute chose, découvre les rituels MoHero. Accomplis ton premier jour.\nCe n’est qu’après ce rite que tu pourras embrasser ta véritable voie.',    
-    image: require('@/assets/initiation_scene.webp'), // ← Change si tu veux une image spécifique pour ce slide
+    content: 'Avant toute chose, découvre les rituels MoHero. Accomplis ton premier jour.\nCe n\'est qu\'après ce rite que tu pourras embrasser ta véritable voie.',    
+    image: require('@/assets/initiation_scene.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
-  
 ];
 
 export default function OnboardingScreen() {
@@ -78,18 +77,8 @@ export default function OnboardingScreen() {
     try {
       setIsLoading(true);
       
-      // Update the user's profile to mark onboarding as complete
-      if (user && user.id) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ onboarding_done: true })
-          .eq('id', user.id);
-
-        if (error) throw error;
-      }
-
-      // Navigate to clan selection
-      router.replace('/(auth)/onboarding/clan');
+      // Navigate to initiation program instead of clan selection
+      router.replace('/(auth)/onboarding/initiation');
     } catch (error) {
       console.error('Error completing onboarding:', error);
     } finally {
