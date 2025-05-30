@@ -10,17 +10,20 @@ import {
   Platform,
   Modal,
   TextInput,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  Switch
 } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
-import { Settings, User, LogOut, Award, CreditCard as Edit, X, Trash, AlertTriangle, ShoppingCart, Gift } from 'lucide-react-native';
+import { useAudio } from '@/context/AudioContext';
+import { Settings, User, LogOut, Award, CreditCard as Edit, X, Trash, AlertTriangle, ShoppingCart, Gift, Volume2 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 export default function AccountScreen() {
   const { user, signOut } = useAuth();
+  const { soundEnabled, setSoundEnabled } = useAudio();
   const [clanName, setClanName] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editName, setEditName] = useState('');
@@ -29,6 +32,7 @@ export default function AccountScreen() {
   const [updateError, setUpdateError] = useState('');
   const [localUserData, setLocalUserData] = useState(user);
   const [clanId, setClanId] = useState('');
+  const [isUpdatingSoundSettings, setIsUpdatingSoundSettings] = useState(false);
   
   useEffect(() => {
     if (user?.clanId) {
@@ -166,8 +170,6 @@ export default function AccountScreen() {
     }
   };
   
-  if (!localUserData) return null;
-  
   const handleSignOut = () => {
     if (Platform.OS === 'web') {
       if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
@@ -185,6 +187,19 @@ export default function AccountScreen() {
       ]
     );
   };
+
+  const handleSoundToggle = async (value: boolean) => {
+    try {
+      setIsUpdatingSoundSettings(true);
+      await setSoundEnabled(value);
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de modifier les effets sonores.');
+    } finally {
+      setIsUpdatingSoundSettings(false);
+    }
+  };
+  
+  if (!localUserData) return null;
   
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -215,6 +230,19 @@ export default function AccountScreen() {
           <User size={20} color={COLORS.textSecondary} />
           <Text style={styles.menuItemText}>Modifier le profil</Text>
         </TouchableOpacity>
+        
+        <View style={styles.menuItem}>
+          <Volume2 size={20} color={COLORS.textSecondary} />
+          <Text style={styles.menuItemText}>Activer les effets sonores</Text>
+          <Switch
+            value={soundEnabled}
+            onValueChange={handleSoundToggle}
+            disabled={isUpdatingSoundSettings}
+            trackColor={{ false: COLORS.border, true: COLORS.primary }}
+            thumbColor={soundEnabled ? COLORS.text : COLORS.textSecondary}
+            style={styles.switch}
+          />
+        </View>
         
         <TouchableOpacity style={styles.deleteAccountItem}>
           <Trash size={20} color={COLORS.error} />
@@ -516,5 +544,9 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginBottom: SPACING.md,
     textAlign: 'center',
+  },
+  switch: {
+    transform: [{ scale: 0.8 }],
+    marginLeft: 'auto',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -8,26 +8,36 @@ import {
   Image,
   Alert,
   ImageBackground,
-  Modal
+  Dimensions
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import ProgressBar from '@/components/ProgressBar';
 import ExerciseCard from '@/components/ExerciseCard';
 import Button from '@/components/Button';
 import { useProgram } from '@/context/ProgramContext';
+import { useAuth } from '@/context/AuthContext';
+import { useAudio } from '@/context/AudioContext';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
   withRepeat, 
   withSequence, 
-  withTiming 
+  withTiming,
+  withDelay,
+  Easing,
+  FadeIn,
+  FadeOut,
+  SlideInDown
 } from 'react-native-reanimated';
 import { DailyRitual, Exercise } from '@/types';
-import { ExerciseDetails } from '@/components/ExerciseCard';
+import { ArrowLeft } from 'lucide-react-native';
+import { supabase } from '@/lib/supabase';
 import { Audio } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import FallingLeaves from '@/components/FallingLeaves';
+import { ExerciseDetails } from '@/components/ExerciseCard';
 
 export default function DailyRitualScreen() {
   const { 
@@ -39,12 +49,19 @@ export default function DailyRitualScreen() {
     completeDay
   } = useProgram();
   
+  const { user } = useAuth();
+  const { playSound } = useAudio();
+  
   const [isLoading, setIsLoading] = useState(true);
   const [dayCompleted, setDayCompleted] = useState(false);
   const pulseValue = useSharedValue(1);
+  const [showCongratulations, setShowCongratulations] = useState(false);
+  const [showProgramCompleted, setShowProgramCompleted] = useState(false);
+  const [showExerciseDetails, setShowExerciseDetails] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [showBamaye, setShowBamaye] = useState(false);
-  const [bamayeSound, setBamayeSound] = useState<Audio.Sound | null>(null);
+  
+  // ID du programme d'initiation qu'il ne faut pas traiter
+  const INITIATION_PROGRAM_ID = 'ecc043c9-61ac-429c-8811-530a4896fd04';
   
   useEffect(() => {
     pulseValue.value = withRepeat(
@@ -140,26 +157,23 @@ export default function DailyRitualScreen() {
     };
   });
   
-  // Effet pour jouer le son bamayedrum.mp3 quand showBamaye devient true
+  // Animation et son pour l'écran Bamayé 
   useEffect(() => {
-    let sound: Audio.Sound | undefined;
-    if (showBamaye) {
-      const playBamayeSound = async () => {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          require('@/assets/music/bamayedrum.mp3'),
-          { shouldPlay: true }
-        );
-        sound = newSound;
-        setBamayeSound(newSound);
-      };
-      playBamayeSound();
+    if (showCongratulations) {
+      // Jouer le son via le contexte audio
+      playSound(require('@/assets/music/bamayedrum.mp3'));
+      
+      // Animation
+      pulseValue.value = withRepeat(
+        withSequence(
+          withTiming(1.2, { duration: 1000 }),
+          withTiming(1, { duration: 1000 })
+        ),
+        -1,
+        true
+      );
     }
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [showBamaye]);
+  }, [showCongratulations]);
 
   // Déplacer la déclaration de isRitualComplete avant son utilisation dans l'effet
   const isRitualComplete = () => {
@@ -169,14 +183,41 @@ export default function DailyRitualScreen() {
 
   // Modifier l'effet pour détecter quand tous les exercices sont terminés et afficher l'écran Bamayé
   useEffect(() => {
-    if (currentRitual && isRitualComplete() && !showBamaye && !dayCompleted) {
-      setShowBamaye(true);
+    if (currentRitual && isRitualComplete() && !showCongratulations && !dayCompleted) {
+      setShowCongratulations(true);
     }
   }, [currentRitual, isRitualComplete, dayCompleted]);
 
   // Fonction pour fermer l'écran Bamayé
-  const handleCloseBamaye = () => {
-    setShowBamaye(false);
+  const handleCloseCongratulations = () => {
+    setShowCongratulations(false);
+  };
+  
+  // Vérifier si le programme est réellement terminé (jour actuel > durée totale)
+  const userProgram = userPrograms.find(up => up.programId === currentProgram?.id);
+  const isProgramCompleted = userProgram && currentProgram && userProgram.currentDay > currentProgram.duration;
+  const isInitiationProgram = currentProgram?.id === INITIATION_PROGRAM_ID;
+  
+  // Afficher l'écran de fin de programme pour les programmes normaux
+  if (isProgramCompleted && !isInitiationProgram) {
+    if (!showProgramCompleted) {
+      setShowProgramCompleted(true);
+    }
+  }
+
+  // Effet pour jouer le son de fin de programme
+  useEffect(() => {
+    if (showProgramCompleted) {
+      // Jouer le son via le contexte audio
+      playSound(require('@/assets/music/fin_programme.mp3'));
+    }
+  }, [showProgramCompleted]);
+
+  // Fonction pour fermer l'écran de fin de programme
+  const handleCloseProgramCompleted = () => {
+    setShowProgramCompleted(false);
+    // Rediriger vers la sélection de programmes
+    router.push('/(app)/(tabs)/voies');
   };
   
   if (isLoading) {
@@ -202,27 +243,6 @@ export default function DailyRitualScreen() {
         </Text>
         <Button
           title="Découvrir les programmes"
-          onPress={() => router.push('/(app)/(tabs)/voies')}
-          style={styles.emptyButton}
-        />
-      </View>
-    );
-  }
-  
-  // Vérifier si le programme est réellement terminé (jour actuel > durée totale)
-  const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
-  const isProgramCompleted = userProgram && currentProgram && userProgram.currentDay > currentProgram.duration;
-  
-  if (isProgramCompleted) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>Programme terminé !</Text>
-        <Text style={styles.emptyText}>
-          Félicitations pour avoir complété ce programme.
-          Choisissez-en un nouveau pour continuer votre progression.
-        </Text>
-        <Button
-          title="Choisir un nouveau programme"
           onPress={() => router.push('/(app)/(tabs)/voies')}
           style={styles.emptyButton}
         />
@@ -268,32 +288,92 @@ export default function DailyRitualScreen() {
     }
   };
   
-  // Affichage de l'écran Bamayé si showBamaye est true
-  if (showBamaye) {
+  // Affichage de l'écran Bamayé si showCongratulations est true
+  if (showCongratulations) {
     return (
-      <ImageBackground
-        source={require('@/assets/slide1.webp')}
-        style={styles.bamayeBackground}
-      >
-        <FallingLeaves />
-        <View style={styles.bamayeOverlay}>
-          <View style={styles.bamayeContainer}>
-            <Animated.View style={[animatedStyle, styles.bamayeIconContainer]}>
-              <Text style={styles.bamayeIcon}>🔥</Text>
-            </Animated.View>
-            <Text style={styles.bamayeTitle}>BAMAYÉ !</Text>
-            <Text style={styles.bamayeMessage}>
-              Tu as terminé tous tes rituels du jour, reviens demain pour continuer à progresser !
-            </Text>
-            <Button
-              title="Terminer"
-              onPress={handleCloseBamaye}
-              style={styles.bamayeButton}
-              fullWidth
-            />
-          </View>
-        </View>
-      </ImageBackground>
+      <>
+        <ImageBackground
+          source={require('@/assets/bamaye.webp')}
+          style={styles.bamayeBackground}
+          resizeMode="cover"
+        >
+          <LinearGradient
+            colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.95)']}
+            style={styles.bamayeGradient}
+          >
+            <FallingLeaves />
+            <View style={styles.bamayeContentContainer}>
+              <Animated.View style={[animatedStyle, styles.bamayeIconContainer]}>
+                <Text style={styles.bamayeIcon}>🔥</Text>
+              </Animated.View>
+              <Text style={styles.bamayeTitle}>BAMAYÉ !</Text>
+              <Text style={styles.bamayeMessage}>
+                Tu as terminé tous tes rituels du jour, reviens demain pour continuer à progresser !
+              </Text>
+              <Button
+                title="Terminer"
+                onPress={handleCloseCongratulations}
+                style={styles.bamayeButton}
+                fullWidth
+              />
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </>
+    );
+  }
+  
+  // Affichage de l'écran de fin de programme si showProgramCompleted est true
+  if (showProgramCompleted) {
+    return (
+      <>
+        <ImageBackground
+          source={require('@/assets/fin_programme.webp')}
+          style={styles.bamayeBackground}
+          resizeMode="cover"
+        >
+          <LinearGradient
+            colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.95)']}
+            style={styles.bamayeGradient}
+          >
+            <FallingLeaves />
+            <View style={styles.bamayeContentContainer}>
+              <Animated.View style={[animatedStyle, styles.bamayeIconContainer]}>
+                <Text style={styles.bamayeIcon}>🏆</Text>
+              </Animated.View>
+              <Text style={styles.bamayeTitle}>PROGRAMME TERMINÉ !</Text>
+              <Text style={styles.bamayeMessage}>
+                Félicitations ! Tu as terminé {currentProgram?.title}. 
+                {'\n'}Tu es maintenant prêt pour un nouveau défi !
+              </Text>
+              <Button
+                title="Choisir un nouveau programme"
+                onPress={handleCloseProgramCompleted}
+                style={styles.bamayeButton}
+                fullWidth
+              />
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </>
+    );
+  }
+  
+  // Pour le programme d'initiation, afficher l'ancien écran simple
+  if (isProgramCompleted && isInitiationProgram) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>Programme terminé !</Text>
+        <Text style={styles.emptyText}>
+          Félicitations pour avoir complété ce programme.
+          Choisissez-en un nouveau pour continuer votre progression.
+        </Text>
+        <Button
+          title="Choisir un nouveau programme"
+          onPress={() => router.push('/(app)/(tabs)/voies')}
+          style={styles.emptyButton}
+        />
+      </View>
     );
   }
   
@@ -382,20 +462,25 @@ export default function DailyRitualScreen() {
       )}
         </View>
     </ScrollView>
-      {selectedExercise && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: COLORS.background,
-          elevation: 999999,
-          zIndex: 999999
-        }}>
-          <ExerciseDetails exercise={selectedExercise} onClose={() => setSelectedExercise(null)} />
-        </View>
-      )}
+    
+    {/* Modale pour les détails de l'exercice */}
+    {selectedExercise && (
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: COLORS.background,
+        elevation: 999999,
+        zIndex: 999999
+      }}>
+        <ExerciseDetails 
+          exercise={selectedExercise} 
+          onClose={() => setSelectedExercise(null)} 
+        />
+      </View>
+    )}
     </View>
   );
 }
@@ -556,18 +641,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  bamayeOverlay: {
+  bamayeGradient: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
-  bamayeContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
+  bamayeContentContainer: {
     padding: SPACING.xl,
+    paddingBottom: SPACING.xl * 3,
     alignItems: 'center',
-    width: '80%',
   },
   bamayeIconContainer: {
     marginBottom: SPACING.lg,

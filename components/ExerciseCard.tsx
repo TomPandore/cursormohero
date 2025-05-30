@@ -225,7 +225,7 @@ export function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
 
           {/* Section Description du mouvement */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Description du mouvement</Text>
+            <Text style={styles.sectionTitle}>DESCRIPTION DU MOUVEMENT</Text>
             <View style={styles.contentBlock}>
               <Text style={[styles.instructionText, { marginBottom: 0 }]}>
                 {exercise.description || "Aucune description disponible pour cet exercice."}
@@ -234,7 +234,7 @@ export function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
           </View>
           
           {/* Section Conseil du mentor avec couleur du clan */}
-          <Text style={styles.sectionTitle}>Conseil du mentor</Text>
+          <Text style={styles.sectionTitle}>CONSEIL DU MENTOR</Text>
           <View style={styles.mentorSection}>
             <View style={styles.mentorContent}>
               <Image 
@@ -578,7 +578,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress, onPressDetail
               <Text style={styles.exerciseTitle}>{exercise.name}</Text>
               {/* Section Description du mouvement */}
               <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Description du mouvement</Text>
+                <Text style={styles.sectionTitle}>DESCRIPTION DU MOUVEMENT</Text>
                 <View style={styles.contentBlock}>
                   <Text style={[styles.instructionText, { marginBottom: 0 }]}>
                     {exercise.description || "Aucune description disponible pour cet exercice."}
@@ -586,6 +586,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress, onPressDetail
                 </View>
               </View>
               {/* Section Conseil du mentor */}
+              <Text style={styles.sectionTitle}>CONSEIL DU MENTOR</Text>
               <View style={styles.mentorSection}>
                 <View style={styles.mentorContent}>
                   <Image 
@@ -623,7 +624,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#121212',
     zIndex: 999999,
   },
   fullScreenContainer: {
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
     height: 300,
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#121212',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -669,6 +670,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: SPACING.lg,
     flex: 1,
+    backgroundColor: '#121212',
   },
   sectionContainer: {
     marginBottom: SPACING.xl,
@@ -676,15 +678,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...FONTS.subheading,
     color: COLORS.textSecondary,
-    fontSize: 15,
+    fontSize: 14,
     marginBottom: SPACING.md,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   contentBlock: {
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.cardSecondary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
+    marginTop: SPACING.sm,
   },
   instructionText: {
     ...FONTS.body,
@@ -871,7 +874,7 @@ const styles = StyleSheet.create({
   videoContainer: {
     height: 250,
     width: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: '#121212',
   },
   modalVideo: {
     width: '100%',
@@ -887,7 +890,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   mentorSection: {
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.cardSecondary,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.lg,
     marginTop: SPACING.sm,

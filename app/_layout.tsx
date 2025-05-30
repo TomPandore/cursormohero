@@ -12,6 +12,7 @@ import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { SplashScreen } from 'expo-router';
 import { AuthProvider } from '@/context/AuthContext';
 import { ProgramProvider } from '@/context/ProgramContext';
+import { AudioProvider } from '@/context/AudioContext';
 import { View, StyleSheet } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 
@@ -42,17 +43,19 @@ export default function RootLayout() {
   return (
     <View style={styles.container}>
       <AuthProvider>
-        <ProgramProvider>
-          <Stack screenOptions={{ 
-            headerShown: false,
-            contentStyle: { backgroundColor: COLORS.background }
-          }}>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          </Stack>
-          <StatusBar style="light" />
-        </ProgramProvider>
+        <AudioProvider>
+          <ProgramProvider>
+            <Stack screenOptions={{ 
+              headerShown: false,
+              contentStyle: { backgroundColor: COLORS.background }
+            }}>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(app)" options={{ headerShown: false }} />
+            </Stack>
+            <StatusBar style="light" />
+          </ProgramProvider>
+        </AudioProvider>
       </AuthProvider>
     </View>
   );

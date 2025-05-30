@@ -4,6 +4,7 @@ import {
   Text,
   View,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
@@ -11,12 +12,14 @@ import Button from '@/components/Button';
 import ClanCard from '@/components/ClanCard';
 import PaginationDot from '@/components/PaginationDot';
 import { useAuth } from '@/context/AuthContext';
+import { useProgram } from '@/context/ProgramContext';
 import { supabase } from '@/lib/supabase';
 import Animated, { 
   useSharedValue,
   useAnimatedScrollHandler,
   runOnJS,
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SPACING.lg * 2;
@@ -38,6 +41,7 @@ export default function ClanSelectionScreen() {
   const { user, updateUserClan } = useAuth();
   const flatListRef = useRef<Animated.FlatList<Clan>>(null);
   const initialScrollDone = useRef(false);
+  const router = useRouter();
   
   useEffect(() => {
     fetchClans();
@@ -109,35 +113,168 @@ export default function ClanSelectionScreen() {
     setSelectedClanId(clanId);
   };
 
+  // Fonction pour vérifier si un programme est spécifique à un clan
+  const isProgramClanSpecific = (programId: string, clanId: string) => {
+    const CLAN_PROGRAM_IDS: Record<string, string> = {
+      'EKLOA': 'b378d5ab-0e4d-4436-98d3-408e7d268eb6',
+      'ONOTKA': 'a0f7a883-f806-423b-827d-97bc004c7c17',
+      'OKWÁHO': '692d1aae-f2b0-45b8-88d1-f9ef351b0b75',
+      'OKWAHO': '692d1aae-f2b0-45b8-88d1-f9ef351b0b75',
+    };
+    
+    // Trouve le clan qui correspond à ce programme
+    const clanWithThisProgram = Object.keys(CLAN_PROGRAM_IDS).find(
+      clanKey => CLAN_PROGRAM_IDS[clanKey] === programId
+    );
+    
+    return clanWithThisProgram !== undefined;
+  };
+
   const handleNext = async () => {
-    if (!selectedClanId) return;
+    if (!selectedClanId || !user?.id) return;
     
     try {
       setIsLoading(true);
       
-      // Vérifier si l'onboarding est terminé, sinon le marquer comme terminé
-      const { data: profile } = await supabase
+      // 1. Récupérer les données actuelles du profil
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('onboarding_done')
-        .eq('id', user?.id)
+        .select('clans_seen, clan_id, programme_id')
+        .eq('id', user.id)
         .single();
         
-      // Update the user's profile with the selected clan
-      // et marquer l'onboarding comme terminé si ce n'est pas déjà fait
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          clan_id: selectedClanId,
-          onboarding_done: true
-        })
-        .eq('id', user?.id);
+      if (profileError) throw profileError;
+      
+      const currentClansSeenIds = profile?.clans_seen || [];
+      const currentClanId = profile?.clan_id;
+      const currentProgramId = profile?.programme_id;
+      
+      // 2. Vérifier si le clan sélectionné a déjà été vu
+      const clanAlreadySeen = currentClansSeenIds.includes(selectedClanId);
+      
+      // 3. Vérifier si on change de clan
+      const isChangingClan = currentClanId && currentClanId !== selectedClanId;
+      
+      // 4. Si on change de clan ET qu'on a un programme spécifique au clan actuel
+      if (isChangingClan && currentProgramId && isProgramClanSpecific(currentProgramId, currentClanId)) {
+        // Récupérer le nom du clan actuel
+        const { data: currentClan } = await supabase
+          .from('clans')
+          .select('nom_clan')
+          .eq('id', currentClanId)
+          .single();
+          
+        const currentClanName = currentClan?.nom_clan || 'votre clan actuel';
+        
+        // Récupérer le nom du nouveau clan
+        const { data: newClan } = await supabase
+          .from('clans')
+          .select('nom_clan')
+          .eq('id', selectedClanId)
+          .single();
+          
+        const newClanName = newClan?.nom_clan || 'ce clan';
+        
+        // Afficher dialogue de confirmation
+        return new Promise((resolve) => {
+          Alert.alert(
+            'Changement de clan',
+            `En rejoignant le clan ${newClanName}, tu perdras la progression de ton programme actuel spécifique au clan ${currentClanName}. Veux-tu continuer ?`,
+            [
+              {
+                text: 'Annuler',
+                style: 'cancel',
+                onPress: () => {
+                  setIsLoading(false);
+                  resolve(false);
+                }
+              },
+              {
+                text: 'Continuer',
+                style: 'destructive',
+                onPress: async () => {
+                  await processClanChange(selectedClanId, clanAlreadySeen, true);
+                  resolve(true);
+                }
+              }
+            ]
+          );
+        });
+      } else {
+        // Pas de conflit, continuer normalement
+        await processClanChange(selectedClanId, clanAlreadySeen, false);
+      }
+    } catch (error) {
+      console.error('Error in handleNext:', error);
+      setIsLoading(false);
+    }
+  };
 
-      if (error) throw error;
+  const processClanChange = async (newClanId: string, clanAlreadySeen: boolean, removeProgram: boolean) => {
+    try {
+      if (!user?.id) throw new Error('User ID is required');
+      
+      // 1. Préparer les données à mettre à jour
+      const updateData: any = {
+        clan_id: newClanId,
+        onboarding_done: true
+      };
+      
+      // 2. Si on doit retirer le programme, le mettre à null
+      if (removeProgram) {
+        updateData.programme_id = null;
+        updateData.progress = null;
+      }
+      
+      // 3. Ajouter le clan aux clans vus s'il n'a pas encore été vu
+      if (!clanAlreadySeen) {
+        // Récupérer les clans actuels et ajouter le nouveau
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('clans_seen')
+          .eq('id', user.id)
+          .single();
+          
+        const currentClansSeenIds = currentProfile?.clans_seen || [];
+        const updatedClansSeenIds = [...currentClansSeenIds, newClanId];
+        
+        // Mettre à jour avec le nouveau tableau
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            ...updateData,
+            clans_seen: updatedClansSeenIds
+          })
+          .eq('id', user.id);
+          
+        if (updateError) throw updateError;
+      } else {
+        // Le clan a déjà été vu, juste mettre à jour les autres champs
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id);
+          
+        if (updateError) throw updateError;
+      }
 
-      // Update local state through context
-      await updateUserClan(selectedClanId);
+      // 4. Mettre à jour le contexte local
+      await updateUserClan(newClanId);
+      
+      // 5. Navigation conditionnelle
+      if (clanAlreadySeen) {
+        // Clan déjà vu, aller directement au totem
+        router.replace('/(app)/(tabs)/totem');
+      } else {
+        // Nouveau clan, afficher l'onboarding
+        router.replace('/(auth)/onboarding/welcome-clan');
+      }
+      
     } catch (error) {
       console.error('Error updating clan:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue lors du changement de clan.');
+    } finally {
+      setIsLoading(false);
     }
   };
 

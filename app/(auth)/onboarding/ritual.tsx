@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  ImageBackground
+  ImageBackground,
+  Dimensions
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -17,18 +18,30 @@ import ExerciseCard from '@/components/ExerciseCard';
 import Button from '@/components/Button';
 import { useProgram } from '@/context/ProgramContext';
 import { useAuth } from '@/context/AuthContext';
+import { useAudio } from '@/context/AudioContext';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
   withRepeat, 
   withSequence, 
-  withTiming 
+  withTiming,
+  withDelay,
+  Easing,
+  FadeIn,
+  FadeOut,
+  SlideInDown
 } from 'react-native-reanimated';
 import { DailyRitual, Exercise } from '@/types';
 import { ArrowLeft } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
+import { Audio } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const INITIATION_PROGRAM_ID = 'ecc043c9-61ac-429c-8811-530a4896fd04';
+
+const AnimatedText = Animated.createAnimatedComponent(Text);
+const AnimatedView = Animated.createAnimatedComponent(View);
 
 export default function InitiationRitualScreen() {
   const { 
@@ -41,22 +54,20 @@ export default function InitiationRitualScreen() {
   } = useProgram();
   
   const { user } = useAuth();
+  const { playSound } = useAudio();
   const [isLoading, setIsLoading] = useState(true);
   const [dayCompleted, setDayCompleted] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState(false);
-  const pulseValue = useSharedValue(1);
+  const [showButton, setShowButton] = useState(false);
   
-  useEffect(() => {
-    pulseValue.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 1000 }),
-        withTiming(1, { duration: 1000 })
-      ),
-      -1,
-      true
-    );
-  }, []);
-  
+  // Animations
+  const titleOpacity = useSharedValue(0);
+  const titleScale = useSharedValue(0.8);
+  const textOpacity = useSharedValue(0);
+  const buttonOpacity = useSharedValue(0);
+  const flameOpacity = useSharedValue(0.5);
+  const flameScale = useSharedValue(1);
+
   useEffect(() => {
     const fetchRitual = async () => {
       console.log('Récupération du rituel d\'initiation...');
@@ -98,12 +109,54 @@ export default function InitiationRitualScreen() {
     }
   }, [currentRitual?.id, currentRitual?.exercises]);
   
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulseValue.value }],
-    };
-  });
-  
+  useEffect(() => {
+    if (showCongratulations) {
+      // Animation de la flamme
+      flameOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.7, { duration: 2000 }),
+          withTiming(0.5, { duration: 2000 })
+        ),
+        -1,
+        true
+      );
+
+      flameScale.value = withRepeat(
+        withSequence(
+          withTiming(1.1, { duration: 2000 }),
+          withTiming(1, { duration: 2000 })
+        ),
+        -1,
+        true
+      );
+
+      // Animation du titre
+      titleOpacity.value = withDelay(
+        500,
+        withTiming(1, { duration: 1000 })
+      );
+      titleScale.value = withDelay(
+        500,
+        withTiming(1, { duration: 1000, easing: Easing.elastic(1) })
+      );
+
+      // Animation du texte
+      textOpacity.value = withDelay(
+        2000,
+        withTiming(1, { duration: 1000 })
+      );
+
+      // Animation du bouton
+      buttonOpacity.value = withDelay(
+        4000,
+        withTiming(1, { duration: 1000 })
+      );
+
+      // Jouer le son
+      playSound(require('@/assets/music/welcome.mp3'));
+    }
+  }, [showCongratulations]);
+
   if (isLoading) {
     return (
       <>
@@ -230,37 +283,70 @@ export default function InitiationRitualScreen() {
             headerShown: false,
           }}
         />
-        <ImageBackground
-          source={require('@/assets/slide1.webp')}
-          style={styles.congratsBackground}
-        >
-          <View style={styles.congratsOverlay}>
-            <View style={styles.congratsContainer}>
-              <Animated.View style={[animatedStyle, styles.congratsIconContainer]}>
-                <Text style={styles.congratsIcon}>🔥</Text>
-              </Animated.View>
-              
-              <Text style={styles.congratsTitle}>BAMAYÉ !</Text>
-              <Text style={styles.congratsSubtitle}>
-                Tu as accompli ton premier rituel d'initiation
-              </Text>
-              
-              <Text style={styles.congratsMessage}>
-                Tu fais maintenant officiellement partie de la tribu MoHero !
-                {'\n\n'}
-                Pour contribuer pleinement à la force de la tribu, tu dois maintenant choisir ton clan. 
-                Chaque clan a ses propres défis et programmes spécialisés.
-              </Text>
-              
-              <Button
-                title="Choisir mon clan"
-                onPress={handleJoinTribe}
-                style={styles.clanButton}
-                fullWidth
-              />
-            </View>
-          </View>
-        </ImageBackground>
+        <View style={styles.congratsContainer}>
+          <ImageBackground
+            source={require('@/assets/welcome-mohero.webp')}
+            style={styles.congratsBackground}
+            resizeMode="cover"
+          >
+            <LinearGradient
+              colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.95)']}
+              style={styles.gradient}
+            >
+              <AnimatedView 
+                style={[
+                  styles.flameContainer,
+                  {
+                    opacity: flameOpacity,
+                    transform: [{ scale: flameScale }]
+                  }
+                ]}
+              >
+                <Text style={styles.flameText}>🔥</Text>
+              </AnimatedView>
+
+              <AnimatedView
+                style={[
+                  styles.titleContainer,
+                  {
+                    opacity: titleOpacity,
+                    transform: [{ scale: titleScale }]
+                  }
+                ]}
+              >
+                <Text style={styles.congratsTitle}>BAMAYÉ !</Text>
+              </AnimatedView>
+
+              <AnimatedView
+                style={[
+                  styles.textContainer,
+                  { opacity: textOpacity }
+                ]}
+              >
+                <Text style={styles.congratsSubtitle}>
+                  La tribu MoHero est honorée de t'accueillir.
+                </Text>
+                <Text style={styles.congratsText}>
+                À présent, pour faire partie des bâtisseurs de la tribu, il est temps de choisir ton clan.
+                </Text>
+              </AnimatedView>
+
+              <AnimatedView
+                style={[
+                  styles.buttonContainer,
+                  { opacity: buttonOpacity }
+                ]}
+              >
+                <Button
+                  title="Choisir mon clan"
+                  onPress={handleJoinTribe}
+                  style={styles.clanButton}
+                  fullWidth
+                />
+              </AnimatedView>
+            </LinearGradient>
+          </ImageBackground>
+        </View>
       </>
     );
   }
@@ -480,50 +566,66 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
   },
+  congratsContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   congratsBackground: {
     flex: 1,
   },
-  congratsOverlay: {
+  gradient: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-  },
-  congratsContainer: {
-    padding: SPACING.xl,
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    padding: SPACING.xl,
+    paddingBottom: 64,
   },
-  congratsIconContainer: {
-    marginBottom: SPACING.xl,
+  flameContainer: {
+    position: 'relative',
+    marginBottom: SPACING.lg,
   },
-  congratsIcon: {
+  flameText: {
     fontSize: 80,
-    textAlign: 'center',
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
   },
   congratsTitle: {
     ...FONTS.heading,
     color: COLORS.text,
-    fontSize: 32,
-    marginBottom: SPACING.md,
+    fontSize: 48,
     textAlign: 'center',
+    textShadowColor: 'rgba(255, 165, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
-  congratsSubtitle: {
-    ...FONTS.body,
-    color: COLORS.primary,
-    fontSize: 18,
-    marginBottom: SPACING.lg,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  congratsMessage: {
-    ...FONTS.body,
-    color: COLORS.text,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
+  textContainer: {
+    alignItems: 'center',
     marginBottom: SPACING.xl,
   },
+  congratsSubtitle: {
+    ...FONTS.heading,
+    color: COLORS.primary,
+    fontSize: 24,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  congratsText: {
+    ...FONTS.body,
+    color: COLORS.text,
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+    lineHeight: 28,
+  },
+  buttonContainer: {
+    width: '100%',
+    maxWidth: 300,
+    marginTop: 0,
+  },
   clanButton: {
-    minWidth: 200,
+    backgroundColor: COLORS.primary,
   },
   exercisesContainer: {
     position: 'relative',

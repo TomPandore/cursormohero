@@ -7,6 +7,7 @@ export interface User {
   currentProgramId?: string;
   onboardingDone?: boolean;
   initiationCompleted?: boolean;
+  sound_enabled?: boolean;
 }
 
 export interface Program {
@@ -18,6 +19,7 @@ export interface Program {
   focus: string[];
   imageUrl: string;
   level: 'Facile' | 'Moyen' | 'Extrême' | 'Progressif';
+  clan_id?: string;
   details: {
     benefits: string[];
     phases: {
