@@ -28,6 +28,7 @@ interface Program {
   type: 'Découverte' | 'Premium';
   tags: string[];
   clan_id?: string;
+  niveau_difficulte: 'Facile' | 'Moyen' | 'Extrême' | 'Progressif';
 }
 
 // Type attendu par la carte
@@ -39,6 +40,7 @@ interface ProgramCardModel {
   duration: number;
   focus: string[];
   category: 'discovery' | 'premium';
+  level: 'Facile' | 'Moyen' | 'Extrême' | 'Progressif';
   details: {
     benefits: string[];
     phases: {
@@ -107,9 +109,21 @@ export default function PathsScreen() {
     }
   };
 
+  const getLevelOrder = (level: string): number => {
+    switch(level) {
+      case 'Facile': return 1;
+      case 'Moyen': return 2;
+      case 'Extrême': return 3;
+      case 'Progressif': return 4;
+      default: return 5;
+    }
+  };
+
   const discoveryPrograms = programs
     .filter(p => p.type === 'Découverte')
-    .map(toCardModel);
+    .sort((a, b) => getLevelOrder(a.niveau_difficulte) - getLevelOrder(b.niveau_difficulte))
+    .map(toCardModel)
+    .reverse();
 
   const premiumPrograms = programs
     .filter(p => p.type === 'Premium')
@@ -185,6 +199,9 @@ export default function PathsScreen() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
           pagingEnabled
+          decelerationRate="fast"
+          snapToInterval={Dimensions.get('window').width - SPACING.lg * 2}
+          snapToAlignment="start"
         >
           {discoveryPrograms.map(program => {
             const isSelected = isProgramSelected(program.id);
@@ -283,6 +300,7 @@ function toCardModel(program: Program): ProgramCardModel {
     duration: program.duree_jours,
     focus: program.tags || [],
     category: program.type === 'Découverte' ? 'discovery' : 'premium',
+    level: program.niveau_difficulte,
     details: {
       benefits: [],
       phases: []
@@ -343,11 +361,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   carouselContainer: {
-    paddingRight: SPACING.lg,
+    paddingRight: 0,
   },
   cardContainer: {
     width: Dimensions.get('window').width - SPACING.lg * 2,
-    marginRight: SPACING.md,
+    paddingRight: SPACING.md,
   },
   paginationContainer: {
     flexDirection: 'row',

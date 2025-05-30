@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import { Program } from '@/types';
-import { Check } from 'lucide-react-native';
+import { Check, ArrowRight } from 'lucide-react-native';
 
 interface ProgramCardProps {
   program: Program;
@@ -19,6 +19,21 @@ interface ProgramCardProps {
 }
 
 export default function ProgramCard({ program, onPress, isSelected = false }: ProgramCardProps) {
+  const getLevelColor = (level: string) => {
+    switch(level) {
+      case 'Facile':
+        return 'rgba(108, 68, 217, 0.4)'; // Violet clair
+      case 'Moyen':
+        return 'rgba(108, 68, 217, 0.5)'; // Violet moyen
+      case 'Extrême':
+        return 'rgba(108, 68, 217, 0.6)'; // Violet intense
+      case 'Progressif':
+        return 'rgba(76, 195, 255, 0.5)'; // Bleu du branding pour distinguer le type évolutif
+      default:
+        return 'rgba(108, 68, 217, 0.5)';
+    }
+  };
+
   return (
     <TouchableOpacity 
       style={[
@@ -39,14 +54,16 @@ export default function ProgramCard({ program, onPress, isSelected = false }: Pr
         imageStyle={styles.imageStyle}
       >
         <LinearGradient
-          colors={isSelected 
-            ? ['rgba(76, 195, 255, 0.3)', 'rgba(108, 68, 217, 0.7)'] 
-            : ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.7)']}
+          colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
           style={styles.gradient}
         >
           <View style={styles.contentContainer}>
-            <Text style={styles.title}>{program.title}</Text>
+            <View style={[styles.levelBadge, { backgroundColor: getLevelColor(program.level) }]}>
+              <Text style={styles.levelText}>{program.level}</Text>
+            </View>
             
+            <View style={styles.mainContent}>
+              <Text style={styles.title}>{program.title}</Text>
             <View style={styles.detailsRow}>
               {program.focus.map((focus, index) => (
                 <View key={index} style={styles.badge}>
@@ -54,14 +71,7 @@ export default function ProgramCard({ program, onPress, isSelected = false }: Pr
                 </View>
               ))}
             </View>
-            
-            <Text style={styles.description}>{program.description}</Text>
-            
-            {isSelected && (
-              <View style={styles.selectedTextContainer}>
-                <Text style={styles.selectedText}>Programme en cours</Text>
               </View>
-            )}
           </View>
         </LinearGradient>
       </ImageBackground>
@@ -78,7 +88,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   selectedContainer: {
-    borderWidth: 3,  // Augmenté pour rendre plus visible
+    borderWidth: 2,
     borderColor: COLORS.primary,
   },
   selectedBadge: {
@@ -88,8 +98,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.round,
-    width: 28,  // Légèrement agrandi
-    height: 28,  // Légèrement agrandi
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -101,47 +111,52 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
   },
   contentContainer: {
+    flex: 1,
     padding: SPACING.md,
+  },
+  levelBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: SPACING.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  levelText: {
+    ...FONTS.caption,
+    color: COLORS.text,
+    fontSize: 12,
+  },
+  mainContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   title: {
     ...FONTS.heading,
     color: COLORS.text,
-    marginBottom: SPACING.xs,
+    fontSize: 22,
+    marginBottom: SPACING.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   detailsRow: {
     flexDirection: 'row',
-    marginBottom: SPACING.sm,
     flexWrap: 'wrap',
+    gap: SPACING.xs,
   },
   badge: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
-    marginRight: SPACING.xs,
-    marginBottom: SPACING.xs,
   },
   badgeText: {
     ...FONTS.caption,
     color: COLORS.text,
-  },
-  description: {
-    ...FONTS.body,
-    color: COLORS.text,
-  },
-  selectedTextContainer: {
-    marginTop: SPACING.sm,
-    backgroundColor: 'rgba(140, 111, 247, 0.3)',
-    padding: SPACING.xs,
-    borderRadius: BORDER_RADIUS.sm,
-    alignSelf: 'flex-start',
-  },
-  selectedText: {
-    ...FONTS.caption,
-    color: COLORS.text,
-    fontWeight: 'bold',
+    fontSize: 12,
   },
 });

@@ -17,6 +17,7 @@ export interface Program {
   category: 'discovery' | 'premium';
   focus: string[];
   imageUrl: string;
+  level: 'Facile' | 'Moyen' | 'Extrême' | 'Progressif';
   details: {
     benefits: string[];
     phases: {

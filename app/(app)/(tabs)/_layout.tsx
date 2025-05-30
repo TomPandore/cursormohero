@@ -69,12 +69,6 @@ export default function TabLayout() {
           title: 'Conseils',
           tabBarIcon: ({ color, size }) => <Lightbulb size={size} color={color} />,
         }}
-        listeners={{
-          tabPress: (e) => {
-            // Empêcher la navigation car cette fonctionnalité n'est pas encore implémentée
-            e.preventDefault();
-          },
-        }}
       />
       <Tabs.Screen
         name="account"

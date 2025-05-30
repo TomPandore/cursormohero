@@ -2,20 +2,26 @@
   "expo": {
     "name": "Mohero",
     "slug": "mohero-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.mohero.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#1A1A1A"
       },
+      "icon": "./assets/images/icon.png",
       "package": "com.mohero.app"
     },
     "web": {
@@ -34,7 +40,11 @@
     },
     "extra": {
       "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJh...Wc",
-      "EXPO_PUBLIC_SUPABASE_URL": "https://dsfcihmminimtdqwwqmj.supabase.co"
+      "EXPO_PUBLIC_SUPABASE_URL": "https://dsfcihmminimtdqwwqmj.supabase.co",
+      "router": {},
+      "eas": {
+        "projectId": "4fd88d11-ff47-48de-ba83-d973242df4f9"
+      }
     }
   }
 }

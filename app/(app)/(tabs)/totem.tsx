@@ -313,39 +313,6 @@ export default function TotemScreen() {
               )}
       </View>
       
-      <View style={styles.hymneContainer}>
-        <View style={styles.hymneCard}>
-          <Text style={styles.hymneTitle}>ÉCOUTER L'HYMNE DE LA TRIBU</Text>
-          
-          <View style={styles.playerContainer}>
-            <TouchableOpacity 
-              style={[styles.playButton, { backgroundColor: getClanColor() }]}
-              onPress={isPlaying ? pauseSound : playSound}
-            >
-              {isPlaying ? (
-                <Pause color="#FFFFFF" size={20} />
-              ) : (
-                <Play color="#FFFFFF" size={20} />
-              )}
-            </TouchableOpacity>
-            <View style={styles.progressBarContainer}>
-              <View 
-                style={[
-                  styles.progressBar, 
-                  { 
-                    backgroundColor: getClanColor(),
-                    width: `${(position / duration) * 100}%`
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={styles.timeText}>
-              {formatTime(position)} / {formatTime(duration)}
-            </Text>
-          </View>
-        </View>
-      </View>
-      
       <View style={styles.clanInfoContainer}>
         <View style={styles.avatarContainer}>
           <Image 
@@ -369,10 +336,6 @@ export default function TotemScreen() {
           <Text style={styles.changeClanDescription}>
             Tu peux quitter ton clan actuel pour en rejoindre un autre.
             Tu gardes ta progression, mais ton entraînement changera de philosophie.
-          </Text>
-          
-          <Text style={styles.noteText}>
-            Dans cette version de l'application, le choix du clan n'influence pas votre parcours.
           </Text>
           
             <TouchableOpacity 
@@ -541,7 +504,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     paddingVertical: SPACING.xs,
   },
   changeClanText: {

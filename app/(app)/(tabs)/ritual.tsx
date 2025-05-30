@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  ImageBackground
+  ImageBackground,
+  Modal
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -24,6 +25,9 @@ import Animated, {
   withTiming 
 } from 'react-native-reanimated';
 import { DailyRitual, Exercise } from '@/types';
+import { ExerciseDetails } from '@/components/ExerciseCard';
+import { Audio } from 'expo-av';
+import FallingLeaves from '@/components/FallingLeaves';
 
 export default function DailyRitualScreen() {
   const { 
@@ -38,6 +42,9 @@ export default function DailyRitualScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [dayCompleted, setDayCompleted] = useState(false);
   const pulseValue = useSharedValue(1);
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [showBamaye, setShowBamaye] = useState(false);
+  const [bamayeSound, setBamayeSound] = useState<Audio.Sound | null>(null);
   
   useEffect(() => {
     pulseValue.value = withRepeat(
@@ -133,6 +140,45 @@ export default function DailyRitualScreen() {
     };
   });
   
+  // Effet pour jouer le son bamayedrum.mp3 quand showBamaye devient true
+  useEffect(() => {
+    let sound: Audio.Sound | undefined;
+    if (showBamaye) {
+      const playBamayeSound = async () => {
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          require('@/assets/music/bamayedrum.mp3'),
+          { shouldPlay: true }
+        );
+        sound = newSound;
+        setBamayeSound(newSound);
+      };
+      playBamayeSound();
+    }
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [showBamaye]);
+
+  // Déplacer la déclaration de isRitualComplete avant son utilisation dans l'effet
+  const isRitualComplete = () => {
+    if (!currentRitual) return false;
+    return currentRitual.exercises.every(ex => ex.completedReps >= ex.targetReps);
+  };
+
+  // Modifier l'effet pour détecter quand tous les exercices sont terminés et afficher l'écran Bamayé
+  useEffect(() => {
+    if (currentRitual && isRitualComplete() && !showBamaye && !dayCompleted) {
+      setShowBamaye(true);
+    }
+  }, [currentRitual, isRitualComplete, dayCompleted]);
+
+  // Fonction pour fermer l'écran Bamayé
+  const handleCloseBamaye = () => {
+    setShowBamaye(false);
+  };
+  
   if (isLoading) {
     return (
       <View style={styles.emptyContainer}>
@@ -213,11 +259,6 @@ export default function DailyRitualScreen() {
     return Math.min(totalReps > 0 ? completedReps / totalReps : 0, 1);
   };
   
-  const isRitualComplete = () => {
-    if (!currentRitual) return false;
-    return currentRitual.exercises.every(ex => ex.completedReps >= ex.targetReps);
-  };
-  
   // Message dynamique du mentor en fonction de l'état des rituels
   const getMentorMessage = () => {
     if (isRitualComplete()) {
@@ -227,96 +268,135 @@ export default function DailyRitualScreen() {
     }
   };
   
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <ImageBackground 
-        source={currentProgram.imageUrl ? { uri: currentProgram.imageUrl } : require('@/assets/slide1.webp')}
-        style={styles.headerBackground}
-        resizeMode="cover"
+  // Affichage de l'écran Bamayé si showBamaye est true
+  if (showBamaye) {
+    return (
+      <ImageBackground
+        source={require('@/assets/slide1.webp')}
+        style={styles.bamayeBackground}
       >
-        <View style={styles.headerOverlay}>
-          <View style={styles.headerContent}>
-            <Text style={styles.programTitle}>{currentProgram.title}</Text>
-            <Text style={styles.dayProgress}>{dayProgress}</Text>
+        <FallingLeaves />
+        <View style={styles.bamayeOverlay}>
+          <View style={styles.bamayeContainer}>
+            <Animated.View style={[animatedStyle, styles.bamayeIconContainer]}>
+              <Text style={styles.bamayeIcon}>🔥</Text>
+            </Animated.View>
+            <Text style={styles.bamayeTitle}>BAMAYÉ !</Text>
+            <Text style={styles.bamayeMessage}>
+              Tu as terminé tous tes rituels du jour, reviens demain pour continuer à progresser !
+            </Text>
+            <Button
+              title="Terminer"
+              onPress={handleCloseBamaye}
+              style={styles.bamayeButton}
+              fullWidth
+            />
           </View>
         </View>
       </ImageBackground>
-
-      <View style={styles.mainContent}>
-        <Animated.View 
-          style={[
-            styles.quoteContainer, 
-            animatedStyle, 
-            isRitualComplete() && styles.completedQuoteContainer
-          ]}
+    );
+  }
+  
+  return (
+    <View style={{ flex: 1 }}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <ImageBackground 
+          source={currentProgram.imageUrl ? { uri: currentProgram.imageUrl } : require('@/assets/slide1.webp')}
+          style={styles.headerBackground}
+          resizeMode="cover"
         >
-          <View style={styles.quoteContent}>
-            <Image 
-              source={require('@/assets/mentor-mohero.png')} 
-              style={[
-                styles.mentorImage,
-                isRitualComplete() && styles.completedMentorImage
-              ]}
-              resizeMode="contain"
-            />
-            <View style={styles.quoteTextContainer}>
-              {isRitualComplete() ? (
-                <>
-                  <Text style={styles.quote}>
-                    <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
-                    <Text>{getMentorMessage()[1]}</Text>
-                  </Text>
-                  <Text style={styles.nextDayInfo}>
-                    Le jour suivant sera disponible à partir de minuit.
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.quote}>"{getMentorMessage()}"</Text>
-              )}
-            </View>
-          </View>
-        </Animated.View>
-        
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressTitle}>Progression du jour</Text>
-          <ProgressBar 
-            progress={calculateDailyProgress()} 
-            height={20} 
-            showPercentage 
-            percentagePosition="inside"
-          />
-        </View>
-        
-        <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
-        
-        {currentRitual.exercises && currentRitual.exercises.length > 0 ? (
-          currentRitual.exercises
-            // Trier les exercices : d'abord les non terminés, puis les terminés
-            .slice()
-            .sort((a, b) => {
-              const aCompleted = a.completedReps >= a.targetReps;
-              const bCompleted = b.completedReps >= b.targetReps;
-              
-              if (aCompleted === bCompleted) {
-                // Garder l'ordre d'origine si les deux sont terminés ou les deux sont non terminés
-                return 0;
-              }
-              
-              // Les non terminés d'abord (-1), les terminés ensuite (1)
-              return aCompleted ? 1 : -1;
-            })
-            .map((exercise: Exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            onUpdateProgress={updateExerciseProgress}
-          />
-            ))
-        ) : (
-          <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
-        )}
+          <View style={styles.headerOverlay}>
+            <View style={styles.headerContent}>
+              <Text style={styles.programTitle}>{currentProgram.title}</Text>
+        <Text style={styles.dayProgress}>{dayProgress}</Text>
       </View>
+          </View>
+        </ImageBackground>
+      
+        <View style={styles.mainContent}>
+      <Animated.View 
+        style={[
+          styles.quoteContainer, 
+          animatedStyle, 
+          isRitualComplete() && styles.completedQuoteContainer
+        ]}
+      >
+        <View style={styles.quoteContent}>
+          <Image 
+            source={require('@/assets/mentor-mohero.png')} 
+            style={[
+              styles.mentorImage,
+              isRitualComplete() && styles.completedMentorImage
+            ]}
+            resizeMode="contain"
+          />
+          <View style={styles.quoteTextContainer}>
+            {isRitualComplete() ? (
+              <>
+                <Text style={styles.quote}>
+                  <Text style={styles.completedQuote}>{getMentorMessage()[0]}</Text>
+                  <Text>{getMentorMessage()[1]}</Text>
+                </Text>
+                <Text style={styles.nextDayInfo}>
+                  Le jour suivant sera disponible à partir de minuit.
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.quote}>"{getMentorMessage()}"</Text>
+            )}
+          </View>
+        </View>
+      </Animated.View>
+      
+      <View style={styles.progressContainer}>
+        <Text style={styles.progressTitle}>Progression du jour</Text>
+        <ProgressBar 
+          progress={calculateDailyProgress()} 
+          height={20} 
+          showPercentage 
+          percentagePosition="inside"
+        />
+      </View>
+      
+      <Text style={styles.exercisesTitle}>RITUELS DU JOUR</Text>
+      
+      {currentRitual.exercises && currentRitual.exercises.length > 0 ? (
+        currentRitual.exercises
+          .slice()
+          .sort((a, b) => {
+            const aCompleted = a.completedReps >= a.targetReps;
+            const bCompleted = b.completedReps >= b.targetReps;
+                if (aCompleted === bCompleted) return 0;
+            return aCompleted ? 1 : -1;
+          })
+          .map((exercise: Exercise) => (
+        <ExerciseCard
+          key={exercise.id}
+          exercise={exercise}
+          onUpdateProgress={updateExerciseProgress}
+                  onPressDetails={() => setSelectedExercise(exercise)}
+        />
+          ))
+      ) : (
+        <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
+      )}
+        </View>
     </ScrollView>
+      {selectedExercise && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: COLORS.background,
+          elevation: 999999,
+          zIndex: 999999
+        }}>
+          <ExerciseDetails exercise={selectedExercise} onClose={() => setSelectedExercise(null)} />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -470,5 +550,45 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.md,
+  },
+  bamayeBackground: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  bamayeOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bamayeContainer: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    width: '80%',
+  },
+  bamayeIconContainer: {
+    marginBottom: SPACING.lg,
+  },
+  bamayeIcon: {
+    fontSize: 48,
+  },
+  bamayeTitle: {
+    ...FONTS.heading,
+    color: COLORS.text,
+    fontSize: 28,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  bamayeMessage: {
+    ...FONTS.body,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  bamayeButton: {
+    minWidth: 200,
   },
 });

@@ -12,6 +12,7 @@ import {
   BackHandler,
   TouchableWithoutFeedback,
   ImageBackground,
+  Modal,
 } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
@@ -36,6 +37,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface ExerciseCardProps {
   exercise: Exercise;
   onUpdateProgress: (exerciseId: string, reps: number) => void;
+  onPressDetails?: (exercise: Exercise) => void;
 }
 
 interface ExerciseDetailsProps {
@@ -48,7 +50,7 @@ interface OverlayPortalProps {
   isVisible: boolean;
 }
 
-function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
+export function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
   const dimensions = useWindowDimensions();
   const videoRef = useRef<Video>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -154,9 +156,23 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
     return clanInfo?.nom_clan || "guerrier";
   };
   
+  const getClanColor = (clanName?: string): string => {
+    if (!clanName) return COLORS.primary;
+    
+    const lowerClanName = clanName.toLowerCase();
+    if (lowerClanName.includes('onotka')) {
+      return COLORS.clan.onotka;
+    } else if (lowerClanName.includes('ekloa')) {
+      return COLORS.clan.ekloa;
+    } else if (lowerClanName.includes('okwaho')) {
+      return COLORS.clan.okwaho;
+    }
+    return COLORS.primary;
+  };
+  
   return (
-    <View style={styles.fullScreenContainer}>
-      <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
+    <View style={styles.modalContainer}>
+      <StatusBar backgroundColor="black" barStyle="light-content" />
       
       <TouchableOpacity 
         style={styles.closeButton}
@@ -175,7 +191,7 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
               style={styles.headerVideo}
               source={{ uri: exercise.videoUrl }}
               useNativeControls={false}
-              resizeMode={ResizeMode.COVER}
+              resizeMode={ResizeMode.CONTAIN}
               isLooping
               shouldPlay={true}
               onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
@@ -196,26 +212,17 @@ function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
                 <Play color="#FFFFFF" size={30} />
               )}
             </TouchableOpacity>
-            <View style={styles.headerOverlay}>
-              <View style={styles.headerContent}>
-                <Text style={styles.programTitle}>{exercise.name}</Text>
-              </View>
-            </View>
           </View>
         ) : (
           <ImageBackground 
             source={{ uri: exercise.imageUrl }}
             style={styles.headerBackground}
-          >
-            <View style={styles.headerOverlay}>
-              <View style={styles.headerContent}>
-                <Text style={styles.programTitle}>{exercise.name}</Text>
-              </View>
-            </View>
-          </ImageBackground>
+          />
         )}
         
         <View style={styles.contentContainer}>
+          <Text style={styles.exerciseTitle}>{exercise.name}</Text>
+
           {/* Section Description du mouvement */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Description du mouvement</Text>
@@ -274,7 +281,7 @@ const OverlayPortal = ({ children, isVisible }: OverlayPortalProps) => {
 // Variable globale pour suivre les détails d'exercice actuellement affichés
 let activeOverlays = 0;
 
-export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCardProps) {
+export default function ExerciseCard({ exercise, onUpdateProgress, onPressDetails }: ExerciseCardProps) {
   // Protection supplémentaire contre les problèmes de données
   if (!exercise || typeof exercise !== 'object') {
     console.error('ExerciseCard: exercise invalide:', exercise);
@@ -375,14 +382,9 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
   };
   
   const openDetails = () => {
-    // Éviter d'ouvrir plusieurs overlays simultanément
-    if (activeOverlays > 0) {
-      console.log("Un overlay est déjà ouvert, ne rien faire");
-      return;
+    if (onPressDetails) {
+      onPressDetails(exercise);
     }
-    
-    console.log("Ouverture des détails");
-    setShowDetails(true);
   };
   
   // Gestion de la vidéo
@@ -436,11 +438,11 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
     
     const lowerClanName = clanName.toLowerCase();
     if (lowerClanName.includes('onotka')) {
-      return '#FF4B4B'; // Rouge pour Onotka
+      return COLORS.clan.onotka;
     } else if (lowerClanName.includes('ekloa')) {
-      return '#4CAF50'; // Vert pour Ekloa
+      return COLORS.clan.ekloa;
     } else if (lowerClanName.includes('okwaho')) {
-      return '#2196F3'; // Bleu pour Okwaho
+      return COLORS.clan.okwaho;
     }
     return COLORS.primary;
   };
@@ -459,11 +461,11 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
               style={styles.image} 
               resizeMode="cover"
             />
-              {exercise.videoUrl && (
-                <View style={styles.videoIndicator}>
-              <Play color={COLORS.text} size={20} />
-                </View>
-              )}
+            {exercise.videoUrl && (
+              <View style={styles.videoIndicator}>
+                <Play color={COLORS.text} size={20} />
+              </View>
+            )}
           </TouchableOpacity>
         
         <View style={styles.detailsContainer}>
@@ -523,9 +525,8 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
     </Animated.View>
       
       {showDetails && (
-        <View style={styles.modalContainer}>
-          <StatusBar backgroundColor={COLORS.background} barStyle="light-content" />
-          
+        <View style={styles.modalOverlay}>
+          <StatusBar backgroundColor="black" barStyle="light-content" />
           <TouchableOpacity 
             style={styles.closeButton}
             onPress={closeDetails}
@@ -534,8 +535,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
           >
             <X color="#FFFFFF" size={26} />
           </TouchableOpacity>
-
-          <ScrollView style={styles.modalScroll}>
+          <ScrollView style={{ flex: 1 }}>
             <View style={styles.videoContainer}>
               {exercise.videoUrl ? (
                 <>
@@ -544,7 +544,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
                     style={styles.modalVideo}
                     source={{ uri: exercise.videoUrl }}
                     useNativeControls={false}
-                    resizeMode={ResizeMode.COVER}
+                    resizeMode={ResizeMode.CONTAIN}
                     isLooping
                     shouldPlay={true}
                     onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
@@ -569,15 +569,13 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
               ) : (
                 <Image 
                   source={{ uri: exercise.imageUrl }}
-                  style={styles.modalImage}
+                  style={styles.modalVideo}
                   resizeMode="cover"
                 />
               )}
             </View>
-            
             <View style={styles.modalContent}>
               <Text style={styles.exerciseTitle}>{exercise.name}</Text>
-              
               {/* Section Description du mouvement */}
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Description du mouvement</Text>
@@ -587,9 +585,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
                   </Text>
                 </View>
               </View>
-              
-              {/* Section Conseil du mentor avec couleur du clan */}
-              <Text style={styles.sectionTitle}>Conseil du mentor</Text>
+              {/* Section Conseil du mentor */}
               <View style={styles.mentorSection}>
                 <View style={styles.mentorContent}>
                   <Image 
@@ -616,24 +612,43 @@ export default function ExerciseCard({ exercise, onUpdateProgress }: ExerciseCar
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  headerBackground: {
-    height: 200,
-    position: 'relative',
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
     overflow: 'hidden',
   },
-  headerVideo: {
-    width: '100%',
-    height: '100%',
+  modalContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: COLORS.background,
+    zIndex: 999999,
+  },
+  fullScreenContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.background,
+    zIndex: 999999,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  headerBackground: {
+    height: 300,
+    position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerVideo: {
+    width: '100%',
+    height: '100%',
   },
   headerOverlay: {
     flex: 1,
@@ -705,18 +720,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: 'italic',
   },
-  fullScreenContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: COLORS.background,
-    zIndex: 99999,
-    elevation: 99999,
-  },
   closeButton: {
     position: 'absolute',
     top: 40,
@@ -724,10 +727,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(80,80,80,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 100000,
+    zIndex: 1000000,
   },
   playButton: {
     position: 'absolute',
@@ -855,51 +858,33 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
-  modalContainer: {
+  modalOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: COLORS.background,
-    zIndex: 99999,
-    elevation: 99999,
-  },
-  modalScroll: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  headerImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    zIndex: 9999,
+    elevation: 99,
   },
   videoContainer: {
     height: 250,
-    position: 'relative',
+    width: '100%',
     backgroundColor: '#000000',
   },
   modalVideo: {
     width: '100%',
     height: '100%',
   },
-  modalImage: {
-    width: '100%',
-    height: '100%',
-  },
   modalContent: {
     padding: SPACING.lg,
-    flex: 1,
   },
   exerciseTitle: {
     ...FONTS.heading,
     color: COLORS.text,
     fontSize: 24,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   mentorSection: {
     backgroundColor: COLORS.card,
