@@ -15,54 +15,85 @@ export interface UserStats {
  * Marque une journée comme complétée pour un utilisateur
  * Incrémente également les compteurs de jours consécutifs et le total de jours
  */
-export const markDayAsCompleted = async (userId: string, clanId: string): Promise<boolean> => {
+export const markDayAsCompleted = async (userId: string, clanId: string | null): Promise<boolean> => {
   try {
+    console.log('markDayAsCompleted: Début avec userId:', userId, 'clanId:', clanId);
+    
+    // Vérifier d'abord l'authentification
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user) {
+      console.error('Problème d\'authentification dans markDayAsCompleted:', sessionError);
+      return false;
+    }
+    
+    console.log('Session utilisateur:', session.user.id, 'vs userId passé:', userId);
+    
     const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    console.log('Date du jour:', today);
     
     // Vérifier si le jour n'a pas déjà été marqué comme complété
     const { data: existingDay, error: checkError } = await supabase
       .from('completed_days')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', session.user.id) // Utiliser session.user.id au lieu de userId
       .eq('completed_at', today)
       .single();
       
     if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = No rows returned
       console.error('Erreur lors de la vérification du jour complété:', checkError);
+      console.error('Détails de l\'erreur:', {
+        message: checkError.message,
+        code: checkError.code,
+        details: checkError.details,
+        hint: checkError.hint
+      });
       return false;
     }
     
     // Si le jour est déjà marqué comme complété, ne rien faire
     if (existingDay) {
-      console.log('Jour déjà marqué comme complété');
+      console.log('Jour déjà marqué comme complété pour la date:', today);
       return true;
     }
     
-    // 1. Enregistrer le jour complété
-    const { error: insertError } = await supabase
+    console.log('Insertion d\'un nouvel enregistrement dans completed_days');
+    
+    // 1. Enregistrer le jour complété (avec clan_id null si pas encore de clan)
+    const { data: insertData, error: insertError } = await supabase
       .from('completed_days')
       .insert({
-        user_id: userId,
-        clan_id: clanId,
+        user_id: session.user.id, // Utiliser session.user.id au lieu de userId
+        clan_id: clanId, // Peut être null pour l'initiation
         completed_at: today
-      });
+      })
+      .select(); // Ajouter select() pour voir les données insérées
     
     if (insertError) {
       console.error('Erreur lors de l\'enregistrement du jour complété:', insertError);
+      console.error('Détails de l\'erreur d\'insertion:', {
+        message: insertError.message,
+        code: insertError.code,
+        details: insertError.details,
+        hint: insertError.hint
+      });
       return false;
     }
+    
+    console.log('Jour complété inséré avec succès:', insertData);
     
     // 2. Récupérer les informations actuelles du profil
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('last_completed_day, consecutive_days, total_days_completed')
-      .eq('id', userId)
+      .eq('id', session.user.id) // Utiliser session.user.id au lieu de userId
       .single();
     
     if (profileError) {
       console.error('Erreur lors de la récupération du profil:', profileError);
       return false;
     }
+    
+    console.log('Données du profil récupérées:', profileData);
     
     let consecutiveDays = profileData?.consecutive_days || 0;
     let totalDaysCompleted = profileData?.total_days_completed || 0;
@@ -85,21 +116,29 @@ export const markDayAsCompleted = async (userId: string, clanId: string): Promis
       consecutiveDays = 1;
     }
     
+    console.log('Mise à jour du profil:', {
+      consecutiveDays,
+      totalDaysCompleted: totalDaysCompleted + 1,
+      last_completed_day: today
+    });
+    
     // 4. Mettre à jour le profil
-    const { error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await supabase
       .from('profiles')
       .update({
         last_completed_day: today,
         consecutive_days: consecutiveDays,
         total_days_completed: totalDaysCompleted + 1
       })
-      .eq('id', userId);
+      .eq('id', session.user.id) // Utiliser session.user.id au lieu de userId
+      .select(); // Ajouter select() pour voir les données mises à jour
     
     if (updateError) {
       console.error('Erreur lors de la mise à jour du profil:', updateError);
       return false;
     }
     
+    console.log('Profil mis à jour avec succès:', updateData);
     return true;
   } catch (error) {
     console.error('Erreur inattendue lors du marquage du jour comme complété:', error);

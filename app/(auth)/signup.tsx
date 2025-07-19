@@ -9,6 +9,7 @@ import {
   ScrollView,
   ImageBackground,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -16,35 +17,85 @@ import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
 import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Eye, EyeOff } from 'lucide-react-native';
 
 export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { signUp, isLoading } = useAuth();
 
+  // Validation email robuste
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Calcul de la force du mot de passe
+  const getPasswordStrength = (password: string) => {
+    let score = 0;
+    if (password.length >= 8) score += 1;
+    if (/[a-z]/.test(password)) score += 1;
+    if (/[A-Z]/.test(password)) score += 1;
+    if (/[0-9]/.test(password)) score += 1;
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+    
+    if (score <= 2) return { level: 'weak', color: COLORS.error, text: 'Faible' };
+    if (score <= 3) return { level: 'medium', color: '#FFA500', text: 'Moyen' };
+    return { level: 'strong', color: COLORS.success, text: 'Fort' };
+  };
+
+  const passwordStrength = password ? getPasswordStrength(password) : null;
+
   const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    // Reset erreur au début
+    setError('');
+
+    // Validation des champs vides
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setError('Veuillez remplir tous les champs');
       return;
     }
 
-    if (!email.includes('@')) {
+    // Validation email
+    if (!isValidEmail(email.trim())) {
       setError('Veuillez entrer une adresse email valide');
       return;
     }
 
+    // Validation mot de passe
     if (password.length < 6) {
       setError('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    // Validation confirmation mot de passe
+    if (password !== confirmPassword) {
+      setError('Les mots de passe ne correspondent pas');
       return;
     }
 
     try {
       await signUp(name.trim(), email.trim(), password.trim());
       // La redirection est gérée dans la fonction signUp vers onboarding
-    } catch (err) {
-      setError('Une erreur est survenue lors de l\'inscription');
+    } catch (err: any) {
+      // Gestion d'erreurs spécifiques
+      if (err.message?.includes('already registered') || err.message?.includes('already_registered')) {
+        setError('Cette adresse email est déjà utilisée');
+      } else if (err.message?.includes('weak-password') || err.message?.includes('weak_password')) {
+        setError('Le mot de passe est trop faible');
+      } else if (err.message?.includes('invalid-email') || err.message?.includes('invalid_email')) {
+        setError('Format d\'email invalide');
+      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
+        setError('Erreur de connexion. Vérifiez votre réseau.');
+      } else {
+        setError('Une erreur est survenue lors de l\'inscription');
+        console.error('Erreur signup détaillée:', err);
+      }
     }
   };
 
@@ -85,7 +136,7 @@ export default function SignupScreen() {
                   placeholder="Ton nom de légende"
                   placeholderTextColor={COLORS.textSecondary}
                   value={name}
-                  onChangeText={setName}
+                  onChangeText={(text) => setName(text.trim())}
                   autoCapitalize="words"
                 />
               </View>
@@ -97,7 +148,7 @@ export default function SignupScreen() {
                   placeholder="ton@email.com"
                   placeholderTextColor={COLORS.textSecondary}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => setEmail(text.trim())}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -105,15 +156,60 @@ export default function SignupScreen() {
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Minimum 6 caractères"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Minimum 6 caractères"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} color={COLORS.textSecondary} />
+                    ) : (
+                      <Eye size={20} color={COLORS.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {passwordStrength && (
+                  <View style={styles.strengthContainer}>
+                    <View style={[styles.strengthBar, { backgroundColor: passwordStrength.color }]} />
+                    <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                      Force : {passwordStrength.text}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Confirmer le mot de passe</Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Répétez votre mot de passe"
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={20} color={COLORS.textSecondary} />
+                    ) : (
+                      <Eye size={20} color={COLORS.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <Button
@@ -192,6 +288,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     color: COLORS.text,
     ...FONTS.body,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: BORDER_RADIUS.sm,
+    height: 50,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: SPACING.md,
+    color: COLORS.text,
+    ...FONTS.body,
+  },
+  eyeButton: {
+    padding: SPACING.md,
+  },
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+  },
+  strengthBar: {
+    height: 3,
+    width: 40,
+    borderRadius: 2,
+    marginRight: SPACING.sm,
+  },
+  strengthText: {
+    ...FONTS.caption,
+    fontSize: 12,
   },
   button: {
     marginTop: SPACING.md,

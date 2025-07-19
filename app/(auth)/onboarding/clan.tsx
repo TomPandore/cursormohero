@@ -59,12 +59,8 @@ export default function ClanSelectionScreen() {
         // Formater les données pour s'assurer que les propriétés sont correctement formatées
         const formattedClans = data.map(clan => ({
           ...clan,
-          // S'assurer que la tagline est une chaîne (pour compatibilité)
-          tagline: clan.tagline !== null && clan.tagline !== undefined 
-            ? (typeof clan.tagline === 'string' 
-               ? clan.tagline 
-               : JSON.stringify(clan.tagline))
-            : '[]',
+          // Tagline simple (fallback si vide)
+          tagline: clan.tagline || '',
           // S'assurer que tags est un tableau
           tags: clan.tags || []
         }));
@@ -119,7 +115,6 @@ export default function ClanSelectionScreen() {
       'EKLOA': 'b378d5ab-0e4d-4436-98d3-408e7d268eb6',
       'ONOTKA': 'a0f7a883-f806-423b-827d-97bc004c7c17',
       'OKWÁHO': '692d1aae-f2b0-45b8-88d1-f9ef351b0b75',
-      'OKWAHO': '692d1aae-f2b0-45b8-88d1-f9ef351b0b75',
     };
     
     // Trouve le clan qui correspond à ce programme
@@ -158,20 +153,12 @@ export default function ClanSelectionScreen() {
       // 4. Si on change de clan ET qu'on a un programme spécifique au clan actuel
       if (isChangingClan && currentProgramId && isProgramClanSpecific(currentProgramId, currentClanId)) {
         // Récupérer le nom du clan actuel
-        const { data: currentClan } = await supabase
-          .from('clans')
-          .select('nom_clan')
-          .eq('id', currentClanId)
-          .single();
+        const currentClan = clans.find(clan => clan.id === currentClanId);
           
         const currentClanName = currentClan?.nom_clan || 'votre clan actuel';
         
         // Récupérer le nom du nouveau clan
-        const { data: newClan } = await supabase
-          .from('clans')
-          .select('nom_clan')
-          .eq('id', selectedClanId)
-          .single();
+        const newClan = clans.find(clan => clan.id === selectedClanId);
           
         const newClanName = newClan?.nom_clan || 'ce clan';
         

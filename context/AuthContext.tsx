@@ -12,6 +12,7 @@ interface AuthContextProps {
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserClan: (clanId: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const defaultContext: AuthContextProps = {
@@ -21,6 +22,7 @@ const defaultContext: AuthContextProps = {
   signUp: async () => {},
   signOut: async () => {},
   updateUserClan: async () => {},
+  deleteAccount: async () => {},
 };
 
 const AuthContext = createContext<AuthContextProps>(defaultContext);
@@ -357,6 +359,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      // Supprimer les données utilisateur de toutes les tables
+      // La cascade ON DELETE CASCADE s'occupera de supprimer les données liées
+      
+      // Supprimer le profil utilisateur (cela supprimera automatiquement les données liées grâce aux contraintes CASCADE)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+      
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        throw profileError;
+      }
+      
+      // Nettoyer l'état local
+      setUser(null);
+      
+      // Déconnecter l'utilisateur
+      await supabase.auth.signOut();
+      
+      // Rediriger vers l'écran de connexion
+      router.replace('/(auth)/login');
+      
+    } catch (error) {
+      console.error('Delete account failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -366,6 +405,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signOut,
         updateUserClan,
+        deleteAccount,
       }}
     >
       {children}

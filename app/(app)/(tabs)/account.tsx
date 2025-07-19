@@ -11,7 +11,8 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
-  Switch
+  Switch,
+  Linking
 } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
@@ -22,7 +23,7 @@ import { Settings, User, LogOut, Award, CreditCard as Edit, X, Trash, AlertTrian
 import { supabase } from '@/lib/supabase';
 
 export default function AccountScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const { soundEnabled, setSoundEnabled } = useAudio();
   const [clanName, setClanName] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -198,6 +199,54 @@ export default function AccountScreen() {
       setIsUpdatingSoundSettings(false);
     }
   };
+
+  const handleDeleteAccount = () => {
+    if (Platform.OS === 'web') {
+      if (confirm('⚠️ ATTENTION - Suppression définitive du compte\n\nCette action est IRRÉVERSIBLE et supprimera définitivement :\n\n• Votre profil et toutes vos informations personnelles\n• Tout votre historique de progression\n• Vos statistiques et jours complétés\n• Votre appartenance au clan\n\nConformément au RGPD, toutes vos données seront définitivement supprimées de nos serveurs.\n\nMême si vous recréez un compte avec la même adresse e-mail, vous repartirez de zéro.\n\nÊtes-vous absolument certain(e) de vouloir supprimer définitivement votre compte ?')) {
+        handleConfirmDeleteAccount();
+      }
+      return;
+    }
+    
+    Alert.alert(
+      '⚠️ ATTENTION - Suppression définitive du compte',
+      'Cette action est IRRÉVERSIBLE et supprimera définitivement :\n\n• Votre profil et toutes vos informations personnelles\n• Tout votre historique de progression\n• Vos statistiques et jours complétés\n• Votre appartenance au clan\n\nConformément au RGPD, toutes vos données seront définitivement supprimées de nos serveurs.\n\nMême si vous recréez un compte avec la même adresse e-mail, vous repartirez de zéro.\n\nÊtes-vous absolument certain(e) de vouloir supprimer définitivement votre compte ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Supprimer définitivement', 
+          style: 'destructive',
+          onPress: () => handleConfirmDeleteAccount()
+        },
+      ]
+    );
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      // La redirection est gérée dans le contexte d'authentification
+    } catch (error) {
+      console.error('Delete account error:', error);
+      Alert.alert(
+        'Erreur',
+        'Une erreur est survenue lors de la suppression du compte. Veuillez réessayer ou contacter le support.'
+      );
+    }
+  };
+
+  const openLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Erreur', 'Impossible d\'ouvrir le lien.');
+      }
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le lien.');
+    }
+  };
   
   if (!localUserData) return null;
   
@@ -244,46 +293,42 @@ export default function AccountScreen() {
           />
         </View>
         
-        <TouchableOpacity style={styles.deleteAccountItem}>
+        <TouchableOpacity style={styles.deleteAccountItem} onPress={handleDeleteAccount}>
           <Trash size={20} color={COLORS.error} />
           <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
         </TouchableOpacity>
       </View>
       
       <View style={styles.menuSection}>
-        <Text style={styles.sectionTitle}>SOUTENIR MOHERO</Text>
+        <Text style={styles.sectionTitle}>SOUTENIR MOHERO (bientôt)</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
-          <Gift size={20} color={COLORS.textSecondary} />
-          <Text style={styles.menuItemText}>Campagne Ulule</Text>
+        <TouchableOpacity style={styles.disabledMenuItem} disabled>
+          <Gift size={20} color={COLORS.textTertiary} />
+          <Text style={styles.disabledMenuItemText}>Campagne Ulule</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.menuItem}>
-          <ShoppingCart size={20} color={COLORS.textSecondary} />
-          <Text style={styles.menuItemText}>Boutique</Text>
+        <TouchableOpacity style={styles.disabledMenuItem} disabled>
+          <ShoppingCart size={20} color={COLORS.textTertiary} />
+          <Text style={styles.disabledMenuItemText}>Boutique</Text>
         </TouchableOpacity>
       </View>
       
       <View style={styles.menuSection}>
         <Text style={styles.sectionTitle}>APPLICATION</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => openLink('https://mohero.fr/#about')}>
           <Text style={styles.menuItemText}>À propos</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Conditions d'utilisation</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => openLink('https://mohero.fr/privacy')}>
+          <Text style={styles.menuItemText}>Mentions légales & Conditions d'utilisation</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Confidentialité & Mentions légales</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => openLink('https://mohero.fr/remerciements')}>
           <Text style={styles.menuItemText}>Remerciements</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => openLink('https://mohero.fr/assistance')}>
           <Text style={styles.menuItemText}>Aides & Assistance</Text>
         </TouchableOpacity>
       </View>
@@ -453,6 +498,20 @@ const styles = StyleSheet.create({
   menuItemText: {
     ...FONTS.body,
     color: COLORS.text,
+    marginLeft: SPACING.md,
+  },
+  disabledMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardSecondary,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+    opacity: 0.5,
+  },
+  disabledMenuItemText: {
+    ...FONTS.body,
+    color: COLORS.textTertiary,
     marginLeft: SPACING.md,
   },
   deleteAccountItem: {

@@ -8,6 +8,7 @@ export const COLORS = {
   accent: '#F77C6F',
   text: '#FFFFFF',
   textSecondary: '#A0A0A0',
+  textTertiary: '#666666',
   border: '#303030',
   success: '#4FD1C5',
   warning: '#F6AD55',

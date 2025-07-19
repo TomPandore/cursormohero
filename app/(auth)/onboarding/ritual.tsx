@@ -14,7 +14,7 @@ import { router, Stack } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import ProgressBar from '@/components/ProgressBar';
-import ExerciseCard from '@/components/ExerciseCard';
+import ExerciseCard, { ExerciseDetails } from '@/components/ExerciseCard';
 import Button from '@/components/Button';
 import { useProgram } from '@/context/ProgramContext';
 import { useAuth } from '@/context/AuthContext';
@@ -59,6 +59,7 @@ export default function InitiationRitualScreen() {
   const [dayCompleted, setDayCompleted] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [showButton, setShowButton] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   
   // Animations
   const titleOpacity = useSharedValue(0);
@@ -98,16 +99,33 @@ export default function InitiationRitualScreen() {
         exercise => exercise.completedReps >= exercise.targetReps
       );
       
-      setDayCompleted(allExercisesCompleted);
-      
-      // Si tous les exercices sont complétés et qu'on n'a pas encore montré les félicitations
-      if (allExercisesCompleted && !showCongratulations) {
+      // Si tous les exercices sont complétés et qu'on n'a pas encore marqué le jour comme terminé
+      if (allExercisesCompleted && !dayCompleted) {
+        const markDayAsCompleted = async () => {
+          try {
+            const result = await completeDay();
+            
+            if (result) {
+              setDayCompleted(true);
+              setShowCongratulations(true);
+            }
+          } catch (error) {
+            console.error('Erreur lors de l\'appel à completeDay():', error);
+          }
+        };
+        
+        markDayAsCompleted();
+      } else if (allExercisesCompleted && !showCongratulations) {
+        // Si le jour est déjà marqué comme complété mais qu'on n'a pas encore montré les félicitations
         setShowCongratulations(true);
+      } else if (!allExercisesCompleted) {
+        // Si tous les exercices ne sont pas complétés, s'assurer que dayCompleted est false
+        setDayCompleted(false);
       }
     } else {
       setDayCompleted(false);
     }
-  }, [currentRitual?.id, currentRitual?.exercises]);
+  }, [currentRitual?.id, currentRitual?.exercises, dayCompleted]);
   
   useEffect(() => {
     if (showCongratulations) {
@@ -242,9 +260,12 @@ export default function InitiationRitualScreen() {
     
     try {
       const completed = await completeDay();
+      
       if (completed) {
         setDayCompleted(true);
         setShowCongratulations(true);
+      } else {
+        Alert.alert('Erreur', 'La validation du jour a échoué. Vérifie les logs pour plus de détails.');
       }
     } catch (error) {
       console.error('Erreur lors de la validation du jour:', error);
@@ -360,7 +381,7 @@ export default function InitiationRitualScreen() {
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <ImageBackground 
-          source={require('@/assets/slide1.webp')}
+          source={{ uri: currentProgram.imageUrl }}
           style={styles.headerBackground}
         >
           <View style={styles.headerOverlay}>
@@ -401,6 +422,7 @@ export default function InitiationRitualScreen() {
                   key={exercise.id}
                   exercise={exercise}
                   onUpdateProgress={updateExerciseProgress}
+                  onPressDetails={() => setSelectedExercise(exercise)}
                 />
               ))}
             </View>
@@ -425,6 +447,12 @@ export default function InitiationRitualScreen() {
           </View>
         </View>
       </ScrollView>
+      {selectedExercise && (
+        <ExerciseDetails
+          exercise={selectedExercise}
+          onClose={() => setSelectedExercise(null)}
+        />
+      )}
     </>
   );
 }

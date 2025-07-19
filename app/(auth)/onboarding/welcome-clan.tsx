@@ -11,23 +11,7 @@ import Animated, { useSharedValue, withTiming, withDelay, Easing } from 'react-n
 import { Check, ChevronDown } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
-const CLAN_PROGRAMS = {
-  EKLOA: {
-    id: 'b378d5ab-0e4d-4436-98d3-408e7d268eb6',
-    name: 'Ekloa',
-    title: 'La lame du vent',
-  },
-  ONOTKA: {
-    id: 'a0f7a883-f806-423b-827d-97bc004c7c17',
-    name: 'Onotka',
-    title: "L'ombre du Colosse",
-  },
-  OKWAHO: {
-    id: '692d1aae-f2b0-45b8-88d1-f9ef351b0b75',
-    name: 'Okwáho',
-    title: 'La rivière du sage',
-  },
-};
+
 
 export default function WelcomeClanScreen() {
   const router = useRouter();
@@ -50,31 +34,30 @@ export default function WelcomeClanScreen() {
       
       try {
         setIsLoadingClanData(true);
-        // Récupérer tous les clans pour créer le mapping
-        const { data: clans, error: clansError } = await supabase
+        // Récupérer le clan de l'utilisateur
+        const { data: userClan, error: clanError } = await supabase
           .from('clans')
-          .select('id, nom_clan');
+          .select('id, nom_clan')
+          .eq('id', user.clanId)
+          .single();
           
-        if (clansError) throw clansError;
+        if (clanError) throw clanError;
         
-        // Créer le mapping ID clan -> ID programme
-        const mapping: Record<string, string> = {};
-        clans?.forEach(clan => {
-          const clanName = clan.nom_clan.toUpperCase();
+        if (userClan) {
+          setClanName(userClan.nom_clan);
+          
+          // Créer le mapping pour ce clan spécifique
+          const mapping: Record<string, string> = {};
+          const clanName = userClan.nom_clan.toUpperCase();
           if (clanName === 'EKLOA') {
-            mapping[clan.id] = 'b378d5ab-0e4d-4436-98d3-408e7d268eb6';
+            mapping[userClan.id] = 'b378d5ab-0e4d-4436-98d3-408e7d268eb6';
           } else if (clanName === 'ONOTKA') {
-            mapping[clan.id] = 'a0f7a883-f806-423b-827d-97bc004c7c17';
+            mapping[userClan.id] = 'a0f7a883-f806-423b-827d-97bc004c7c17';
           } else if (clanName === 'OKWÁHO' || clanName === 'OKWAHO') {
-            mapping[clan.id] = '692d1aae-f2b0-45b8-88d1-f9ef351b0b75';
+            mapping[userClan.id] = '692d1aae-f2b0-45b8-88d1-f9ef351b0b75';
           }
-        });
-        
-        setClanMapping(mapping);
-        
-        // Récupérer le nom du clan de l'utilisateur
-        const userClan = clans?.find(clan => clan.id === user.clanId);
-        if (userClan) setClanName(userClan.nom_clan);
+          setClanMapping(mapping);
+        }
       } catch (err) {
         console.error('Error fetching clan data:', err);
       } finally {
@@ -95,16 +78,7 @@ export default function WelcomeClanScreen() {
     opacity.value = withDelay(300, withTiming(1, { duration: 1200, easing: Easing.out(Easing.exp) }));
   }, []);
 
-  // Debug temporaire
-  useEffect(() => {
-    console.log('user?.clanId:', user?.clanId);
-    console.log('programs:', programs);
-    if (program) {
-      console.log('Programme trouvé pour ce clan:', program);
-    } else {
-      console.log('Aucun programme trouvé pour ce clan');
-    }
-  }, [user?.clanId, programs]);
+
 
   const handleStart = async () => {
     if (!program) return;

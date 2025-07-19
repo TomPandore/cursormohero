@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { COLORS } from '@/constants/Colors';
 import { BORDER_RADIUS, FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
@@ -22,18 +23,44 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn, isLoading } = useAuth();
 
+  // Validation email
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleLogin = async () => {
+    // Nettoyer l'erreur précédente
+    setError('');
+
+    // Validation des champs
     if (!email || !password) {
       setError('Veuillez remplir tous les champs');
       return;
     }
 
+    if (!isValidEmail(email)) {
+      setError('Veuillez entrer un email valide');
+      return;
+    }
+
     try {
       await signIn(email, password);
-    } catch (err) {
-      setError('Identifiants incorrects');
+    } catch (err: any) {
+      // Gestion d'erreurs plus détaillée
+      if (err?.message?.includes('Invalid login credentials')) {
+        setError('Email ou mot de passe incorrect');
+      } else if (err?.message?.includes('Email not confirmed')) {
+        setError('Veuillez confirmer votre email avant de vous connecter');
+      } else if (err?.message?.includes('Too many requests')) {
+        setError('Trop de tentatives. Veuillez patienter quelques minutes');
+      } else if (!navigator.onLine) {
+        setError('Pas de connexion internet');
+      } else {
+        setError('Une erreur est survenue. Veuillez réessayer');
+      }
     }
   };
 
@@ -74,7 +101,11 @@ export default function LoginScreen() {
                   placeholder="ton@email.com"
                 placeholderTextColor={COLORS.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  // Nettoyer l'erreur quand l'utilisateur tape
+                  if (error) setError('');
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -82,14 +113,30 @@ export default function LoginScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Mot de passe</Text>
-              <TextInput
-                style={styles.input}
-                  placeholder="Ton mot de passe"
-                placeholderTextColor={COLORS.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                    placeholder="Ton mot de passe"
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    // Nettoyer l'erreur quand l'utilisateur tape
+                    if (error) setError('');
+                  }}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color={COLORS.textSecondary} />
+                  ) : (
+                    <Eye size={20} color={COLORS.textSecondary} />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Button
@@ -192,6 +239,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     color: COLORS.text,
     ...FONTS.body,
+  },
+  // Nouveaux styles pour le champ mot de passe avec icône
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: BORDER_RADIUS.sm,
+    height: 50,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: SPACING.md,
+    color: COLORS.text,
+    ...FONTS.body,
+  },
+  eyeButton: {
+    padding: SPACING.md,
   },
   button: {
     marginTop: SPACING.md,

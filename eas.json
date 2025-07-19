@@ -7,7 +7,16 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
+      },
+      "ios": {
+        "simulator": true
       }
+    },
+    "beta": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {}
     },
     "preview2": {
       "android": {
@@ -16,6 +25,11 @@
     },
     "preview3": {
       "developmentClient": true
+    },
+    "share": {
+      "ios": {
+        "distribution": "internal"
+      }
     },
     "production": {}
   }

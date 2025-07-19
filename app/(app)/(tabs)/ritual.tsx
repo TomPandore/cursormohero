@@ -76,7 +76,6 @@ export default function DailyRitualScreen() {
   
   useEffect(() => {
     const fetchRitual = async () => {
-      console.log('Tentative de récupération du rituel...');
       setIsLoading(true);
       try {
         await getCurrentDayRitual();
@@ -89,17 +88,7 @@ export default function DailyRitualScreen() {
     fetchRitual();
   }, [currentProgram, userPrograms]);
   
-  // Log pour afficher la structure des exercices reçus
-  useEffect(() => {
-    if (currentRitual && currentRitual.exercises) {
-      console.log('Exercices reçus:', JSON.stringify(currentRitual.exercises.map(ex => ({
-        id: ex.id,
-        name: ex.name,
-        videoUrl: ex.videoUrl,
-        imageUrl: ex.imageUrl
-      })), null, 2));
-    }
-  }, [currentRitual]);
+
   
   // Effet pour détecter quand tous les exercices sont terminés
   useEffect(() => {
@@ -112,20 +101,17 @@ export default function DailyRitualScreen() {
       // Si tous les exercices sont complétés, marquer le jour comme terminé dans les statistiques
       // mais sans passer au jour suivant
       if (allExercisesCompleted) {
-        console.log('Tous les exercices sont complétés, marquage du jour comme terminé...');
         const markDayAsCompleted = async () => {
           try {
             // Éviter de rappeler completeDay si le jour est déjà marqué comme complété
             // dans l'état local, même si tous les exercices sont terminés
             if (dayCompleted) {
-              console.log('Jour déjà marqué comme complété, pas besoin de rappeler completeDay');
               return;
             }
             
             const result = await completeDay();
             if (result) {
               setDayCompleted(true);
-              console.log('Jour marqué comme terminé avec succès dans les statistiques');
             }
           } catch (error) {
             console.error('Erreur lors du marquage du jour comme terminé:', error);
@@ -394,10 +380,9 @@ export default function DailyRitualScreen() {
         </ImageBackground>
       
         <View style={styles.mainContent}>
-      <Animated.View 
+      <View 
         style={[
           styles.quoteContainer, 
-          animatedStyle, 
           isRitualComplete() && styles.completedQuoteContainer
         ]}
       >
@@ -418,7 +403,7 @@ export default function DailyRitualScreen() {
                   <Text>{getMentorMessage()[1]}</Text>
                 </Text>
                 <Text style={styles.nextDayInfo}>
-                  Le jour suivant sera disponible à partir de minuit.
+                  Le jour suivant sera disponible à partir de minuit, une fois tous les rituels terminés.
                 </Text>
               </>
             ) : (
@@ -426,7 +411,7 @@ export default function DailyRitualScreen() {
             )}
           </View>
         </View>
-      </Animated.View>
+      </View>
       
       <View style={styles.progressContainer}>
         <Text style={styles.progressTitle}>Progression du jour</Text>
@@ -465,16 +450,7 @@ export default function DailyRitualScreen() {
     
     {/* Modale pour les détails de l'exercice */}
     {selectedExercise && (
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: COLORS.background,
-        elevation: 999999,
-        zIndex: 999999
-      }}>
+      <View style={styles.exerciseModal}>
         <ExerciseDetails 
           exercise={selectedExercise} 
           onClose={() => setSelectedExercise(null)} 
@@ -671,5 +647,15 @@ const styles = StyleSheet.create({
   },
   bamayeButton: {
     minWidth: 200,
+  },
+  exerciseModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.background,
+    elevation: 999999,
+    zIndex: 999999,
   },
 });

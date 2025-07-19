@@ -12,10 +12,7 @@ import {
 import { COLORS } from '@/constants/Colors';
 import { FONTS, SPACING, BORDER_RADIUS } from '@/constants/Layout';
 import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { router } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
 import { decode } from 'html-entities';
 
 interface BlogPost {
@@ -53,7 +50,8 @@ export default function TipsScreen() {
       if (error) throw error;
       setArticles(data || []);
     } catch (error) {
-      console.error('Erreur lors de la récupération des articles:', error);
+      // Gestion silencieuse de l'erreur - les articles restent vides
+      setArticles([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -71,26 +69,6 @@ export default function TipsScreen() {
 
   const handleArticlePress = (articleId: number) => {
     router.push(`/tips/${articleId}`);
-  };
-
-  const getCategoryColor = (category: string): string => {
-    const lowerCategory = category.toLowerCase();
-    switch(lowerCategory) {
-      case 'nutrition':
-        return COLORS.clan.ekloa;
-      case 'entrainement':
-        return COLORS.clan.onotka;
-      case 'mental':
-        return COLORS.clan.okwaho;
-      case 'hygiène de vie':
-        return COLORS.clan.ekloa;
-      default:
-        return COLORS.primary;
-    }
-  };
-
-  const formatDate = (date: string) => {
-    return format(new Date(date), "d MMMM yyyy", { locale: fr });
   };
 
   if (isLoading) {
@@ -214,13 +192,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING.md,
-  },
-  tipBadgeOnText: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    marginRight: SPACING.sm,
   },
   tipBadgeText: {
     ...FONTS.caption,

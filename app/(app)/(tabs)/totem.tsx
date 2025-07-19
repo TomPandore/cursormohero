@@ -20,8 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useProgram } from '@/context/ProgramContext';
 import { supabase } from '@/lib/supabase';
 import { fetchUserStats, UserStats } from '@/lib/statsUtils';
-import { ChevronRight, Flame, Dumbbell, Activity, Wind, Pause, Play } from 'lucide-react-native';
-import { Audio } from 'expo-av';
+import { ChevronRight, Flame, Dumbbell, Activity, Wind } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -34,7 +33,6 @@ interface ClanData {
 }
 
 export default function TotemScreen() {
-  console.log("Rendu du composant TotemScreen");
   const { user } = useAuth();
   const { currentProgram, userPrograms, currentRitual } = useProgram();
   const [clanData, setClanData] = useState<ClanData | null>(null);
@@ -45,10 +43,6 @@ export default function TotemScreen() {
     totalSquats: 0,
     totalBreathingExercises: 0
   });
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [position, setPosition] = useState(0);
   
   // Vérifier si l'écran est actuellement focalisé
   const isFocused = useIsFocused();
@@ -65,40 +59,8 @@ export default function TotemScreen() {
   useEffect(() => {
     if (user?.id && (currentRitual || isFocused)) {
       loadUserStats();
-      console.log("Chargement des statistiques utilisateur déclenché", 
-        isFocused ? "par focus" : "par changement de rituel");
     }
-  }, [user?.id, currentRitual, isFocused]);
-
-  useEffect(() => {
-    return sound
-      ? () => {
-          console.log('Unloading Sound');
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
-
-  // Mettre à jour la position toutes les 100ms
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    
-    if (isPlaying && sound) {
-      interval = setInterval(async () => {
-        const status = await sound.getStatusAsync();
-        if (status.isLoaded) {
-          setPosition(status.positionMillis);
-          setDuration(status.durationMillis || 0);
-        }
-      }, 100);
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [isPlaying, sound]);
+  }, [user?.id, currentRitual?.exercises, isFocused]);
 
   const fetchClanData = async () => {
     try {
@@ -119,10 +81,8 @@ export default function TotemScreen() {
     if (!user?.id) return;
     
     try {
-      console.log('Début du chargement des statistiques utilisateur');
       const stats = await fetchUserStats(user.id);
       setUserStats(stats);
-      console.log('Statistiques utilisateur chargées:', stats);
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques utilisateur:', error);
     }
@@ -185,55 +145,6 @@ export default function TotemScreen() {
     router.push('/(auth)/onboarding/clan');
   };
 
-  const getAvatarUrl = (clanName: string) => {
-    if (!clanName) {
-      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png';
-    }
-    
-    if (clanName.toUpperCase().includes('ONOTKA')) {
-      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-onotka.png';
-    } else if (clanName.toUpperCase().includes('EKLOA')) {
-      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-ekloa.png';
-    } else if (clanName.toUpperCase().includes('OKWÁHO') || clanName.toUpperCase().includes('OKWAHO')) {
-      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-okwadho.png';
-    } else {
-      return 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png';
-    }
-  };
-
-  async function playSound() {
-    console.log('Loading Sound');
-    const { sound } = await Audio.Sound.createAsync(
-      require('@/assets/music/mohero-hymne.mp3'),
-      { shouldPlay: true },
-      onPlaybackStatusUpdate
-    );
-    setSound(sound);
-    setIsPlaying(true);
-  }
-
-  async function pauseSound() {
-    if (sound) {
-      await sound.pauseAsync();
-      setIsPlaying(false);
-    }
-  }
-
-  const onPlaybackStatusUpdate = (status: any) => {
-    if (status.isLoaded) {
-      setPosition(status.positionMillis);
-      setDuration(status.durationMillis || 0);
-      setIsPlaying(status.isPlaying);
-    }
-  };
-
-  const formatTime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.totemContainer}>
@@ -254,7 +165,7 @@ export default function TotemScreen() {
               <View style={styles.badgesContainer}>
                 <View style={styles.statBadge}>
                   <Flame size={18} color={getClanColor()} />
-                  <Text style={styles.badgeValue}>{userStats.consecutiveDays}</Text>
+                  <Text style={styles.badgeValue}>{userStats.totalDaysCompleted}</Text>
                   <Text style={styles.badgeLabel}>Jours terminés</Text>
                 </View>
                 
@@ -592,56 +503,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginBottom: SPACING.md,
-  },
-  hymneContainer: {
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.xl,
-  },
-  hymneCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  hymneTitle: {
-    ...FONTS.subheading,
-    color: COLORS.text,
-    fontSize: 14,
-    letterSpacing: 1,
-    marginBottom: SPACING.md,
-  },
-  playerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.sm,
-  },
-  playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  progressBarContainer: {
-    flex: 1,
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginRight: SPACING.sm,
-  },
-  progressBar: {
-    height: '100%',
-  },
-  timeText: {
-    ...FONTS.caption,
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    minWidth: 80,
-    textAlign: 'right',
   },
 });
