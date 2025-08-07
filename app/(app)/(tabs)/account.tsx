@@ -349,7 +349,7 @@ export default function AccountScreen() {
         />
       </View>
       
-      <Text style={styles.versionText}>Version 1.0.0</Text>
+                      <Text style={styles.versionText}>Version 1.1.1</Text>
       
       {/* Edit Profile Modal */}
       <Modal

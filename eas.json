@@ -31,6 +31,11 @@
         "distribution": "internal"
       }
     },
+    "testflight": {
+      "ios": {
+        "distribution": "store"
+      }
+    },
     "production": {}
   }
 } 

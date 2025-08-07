@@ -37,6 +37,7 @@ export interface Exercise {
   videoUrl: string;
   targetReps: number;
   completedReps: number;
+  isDurationBased?: boolean; // true pour les exercices en durée (secondes), false/undefined pour les répétitions
 }
 
 export interface DailyRitual {

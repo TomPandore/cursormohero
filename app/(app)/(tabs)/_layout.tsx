@@ -3,9 +3,12 @@ import { COLORS, SHADOWS } from '@/constants/Colors';
 import { FONTS } from '@/constants/Layout';
 import { Mountain, Compass, Flame, User, Lightbulb } from 'lucide-react-native';
 import { View, StyleSheet, Text, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React from 'react';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tabs
       screenOptions={{
@@ -14,8 +17,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: COLORS.card,
           borderTopColor: COLORS.border,
-          height: 60,
-          paddingBottom: 5,
+          height: 60 + insets.bottom, // Ajouter la safe area bottom
+          paddingBottom: Math.max(insets.bottom, 5), // Au minimum 5px, ou la safe area
+          paddingTop: 5,
           ...SHADOWS.medium,
         },
         tabBarLabelStyle: {

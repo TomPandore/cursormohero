@@ -19,6 +19,7 @@ import Button from '@/components/Button';
 import { useProgram } from '@/context/ProgramContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
+import OnboardingTutorial from '@/components/OnboardingTutorial';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -46,7 +47,9 @@ export default function DailyRitualScreen() {
     currentRitual,
     getCurrentDayRitual, 
     updateExerciseProgress,
-    completeDay
+    completeDay,
+    reloadData,
+    resetAndReload
   } = useProgram();
   
   const { user } = useAuth();
@@ -54,11 +57,16 @@ export default function DailyRitualScreen() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [dayCompleted, setDayCompleted] = useState(false);
+  const [isForceUpdating, setIsForceUpdating] = useState(false);
   const pulseValue = useSharedValue(1);
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [showProgramCompleted, setShowProgramCompleted] = useState(false);
   const [showExerciseDetails, setShowExerciseDetails] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+
+  // États pour le tutorial d'onboarding
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialLoading, setTutorialLoading] = useState(true);
   
   // ID du programme d'initiation qu'il ne faut pas traiter
   const INITIATION_PROGRAM_ID = 'ecc043c9-61ac-429c-8811-530a4896fd04';
@@ -75,6 +83,9 @@ export default function DailyRitualScreen() {
   }, []);
   
   useEffect(() => {
+    // Ne pas recharger pendant une mise à jour forcée
+    if (isForceUpdating) return;
+    
     const fetchRitual = async () => {
       setIsLoading(true);
       try {
@@ -86,9 +97,42 @@ export default function DailyRitualScreen() {
       }
     };
     fetchRitual();
-  }, [currentProgram, userPrograms]);
-  
+  }, [currentProgram, userPrograms, isForceUpdating]);
 
+  // Vérifier si le tutorial doit être affiché
+  useEffect(() => {
+    const checkTutorialStatus = async () => {
+      if (!user?.id) {
+        setTutorialLoading(false);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('ritual_tutorial_completed')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Erreur lors de la vérification du tutorial:', error);
+          setTutorialLoading(false);
+          return;
+        }
+
+        // Si ritual_tutorial_completed est NULL, on affiche le tutorial
+        const shouldShowTutorial = profile?.ritual_tutorial_completed === null;
+        setShowTutorial(shouldShowTutorial);
+        setTutorialLoading(false);
+
+      } catch (error) {
+        console.error('Erreur lors de la vérification du tutorial:', error);
+        setTutorialLoading(false);
+      }
+    };
+
+    checkTutorialStatus();
+  }, [user?.id]);
   
   // Effet pour détecter quand tous les exercices sont terminés
   useEffect(() => {
@@ -199,11 +243,133 @@ export default function DailyRitualScreen() {
     }
   }, [showProgramCompleted]);
 
+  // Fonction pour forcer le passage au jour suivant
+  const handleForceNextDay = async () => {
+    try {
+      if (!currentProgram || !userPrograms.length || !user?.id) {
+        alert('Impossible de passer au jour suivant : données manquantes');
+        return;
+      }
+
+      const currentUserProgram = userPrograms[0];
+      const nextDay = currentUserProgram.currentDay + 1;
+      
+      if (nextDay > currentProgram.duration) {
+        alert('✅ Programme terminé ! Félicitations !');
+        router.push('/(app)/(tabs)/voies');
+        return;
+      }
+
+      // Vérifier si tous les exercices sont terminés
+      const allExercisesCompleted = isRitualComplete();
+      
+      // Afficher une confirmation différente selon l'état des exercices
+      const confirmationMessage = allExercisesCompleted
+        ? "Tu confirmes que tu souhaites passer au jour suivant ?"
+        : "Tu es bien sûr de vouloir passer au jour suivant ? Tu n'as pas terminé tes rituels...";
+
+      Alert.alert(
+        "Passage au jour suivant",
+        confirmationMessage,
+        [
+          {
+            text: "Annuler",
+            style: "cancel"
+          },
+          {
+            text: "Oui",
+            onPress: async () => {
+              // Mettre à jour la base de données
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ 
+                  progress: { 
+                    currentDay: nextDay,
+                    lastUpdated: new Date().toISOString(),
+                    completedDate: null,
+                    totalCompletedDays: currentUserProgram.currentDay
+                  },
+                  last_completed_day: new Date().toISOString()
+                })
+                .eq('id', user.id);
+                
+              if (updateError) {
+                console.error('❌ Erreur:', updateError);
+                alert('Erreur lors du passage au jour suivant.');
+                return;
+              }
+
+              // Bloquer le useEffect pendant la mise à jour
+              setIsForceUpdating(true);
+              
+              alert(`✅ Passage réussi ! Vous êtes maintenant au jour ${nextDay}. Rechargement en cours...`);
+              
+              // RESET COMPLET comme une déconnexion/reconnexion
+              await resetAndReload();
+              
+              // Attendre que tout soit rechargé puis débloquer
+              setTimeout(() => {
+                setIsForceUpdating(false);
+              }, 2000);
+            }
+          }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      alert('Erreur lors du passage au jour suivant.');
+    }
+  };
+
   // Fonction pour fermer l'écran de fin de programme
   const handleCloseProgramCompleted = () => {
     setShowProgramCompleted(false);
     // Rediriger vers la sélection de programmes
     router.push('/(app)/(tabs)/voies');
+  };
+
+  // Fonctions pour gérer le tutorial
+  const handleTutorialComplete = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Marquer le tutorial comme terminé dans la BDD
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ritual_tutorial_completed: true })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Erreur lors de la sauvegarde du tutorial:', error);
+      }
+
+      setShowTutorial(false);
+    } catch (error) {
+      console.error('Erreur lors de la completion du tutorial:', error);
+      setShowTutorial(false);
+    }
+  };
+
+  const handleTutorialSkip = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Marquer le tutorial comme terminé même si skippé
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ritual_tutorial_completed: true })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Erreur lors de la sauvegarde du tutorial:', error);
+      }
+
+      setShowTutorial(false);
+    } catch (error) {
+      console.error('Erreur lors du skip du tutorial:', error);
+      setShowTutorial(false);
+    }
   };
   
   if (isLoading) {
@@ -445,6 +611,16 @@ export default function DailyRitualScreen() {
       ) : (
         <Text style={styles.noExercisesText}>Aucun exercice disponible pour aujourd'hui</Text>
       )}
+      
+      {/* Bouton pour passer au jour suivant - Seulement si l'utilisateur semble bloqué */}
+              <View style={styles.nextDayContainer}>
+          <Button
+            title="Passer au jour suivant"
+            onPress={handleForceNextDay}
+            variant="primary"
+            style={styles.nextDayButton}
+          />
+        </View>
         </View>
     </ScrollView>
     
@@ -456,6 +632,15 @@ export default function DailyRitualScreen() {
           onClose={() => setSelectedExercise(null)} 
         />
       </View>
+    )}
+
+    {/* Tutorial d'onboarding */}
+    {!tutorialLoading && (
+      <OnboardingTutorial
+        visible={showTutorial}
+        onComplete={handleTutorialComplete}
+        onSkip={handleTutorialSkip}
+      />
     )}
     </View>
   );
@@ -657,5 +842,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     elevation: 999999,
     zIndex: 999999,
+  },
+  nextDayContainer: {
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.lg,
+    alignItems: 'center',
+  },
+  nextDayButton: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    minWidth: 200,
   },
 });

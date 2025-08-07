@@ -243,35 +243,9 @@ export default function InitiationRitualScreen() {
     return Math.min(totalReps > 0 ? completedReps / totalReps : 0, 1);
   };
   
-  const isRitualComplete = () => {
-    if (!currentRitual) return false;
-    return currentRitual.exercises.every(ex => ex.completedReps >= ex.targetReps);
-  };
+
   
-  const handleCompleteDay = async () => {
-    if (!isRitualComplete()) {
-      Alert.alert(
-        "Rituel incomplet",
-        "Tu dois terminer tous les rituels pour valider ta journée d'initiation.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    
-    try {
-      const completed = await completeDay();
-      
-      if (completed) {
-        setDayCompleted(true);
-        setShowCongratulations(true);
-      } else {
-        Alert.alert('Erreur', 'La validation du jour a échoué. Vérifie les logs pour plus de détails.');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la validation du jour:', error);
-      Alert.alert('Erreur', 'Impossible de valider la journée. Veuillez réessayer.');
-    }
-  };
+
   
   const handleJoinTribe = async () => {
     try {
@@ -428,23 +402,7 @@ export default function InitiationRitualScreen() {
             </View>
           </View>
           
-          <View style={styles.actionContainer}>
-            {isRitualComplete() ? (
-              <Button
-                title={dayCompleted ? "Jour terminé !" : "Valider ma journée d'initiation"}
-                onPress={handleCompleteDay}
-                style={[styles.completeButton, dayCompleted && styles.completedButton]}
-                disabled={dayCompleted}
-                fullWidth
-              />
-            ) : (
-              <View style={styles.incompleteContainer}>
-                <Text style={styles.incompleteText}>
-                  Termine tous les rituels pour valider ta journée d'initiation
-                </Text>
-              </View>
-            )}
-          </View>
+
         </View>
       </ScrollView>
       {selectedExercise && (

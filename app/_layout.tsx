@@ -14,6 +14,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { ProgramProvider } from '@/context/ProgramContext';
 import { AudioProvider } from '@/context/AudioContext';
 import { View, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/Colors';
 
 // Prevent splash screen from auto-hiding
@@ -41,23 +42,25 @@ export default function RootLayout() {
   }
 
   return (
-    <View style={styles.container}>
-      <AuthProvider>
-        <AudioProvider>
-          <ProgramProvider>
-            <Stack screenOptions={{ 
-              headerShown: false,
-              contentStyle: { backgroundColor: COLORS.background }
-            }}>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(app)" options={{ headerShown: false }} />
-            </Stack>
-            <StatusBar style="light" />
-          </ProgramProvider>
-        </AudioProvider>
-      </AuthProvider>
-    </View>
+    <SafeAreaProvider>
+      <View style={styles.container}>
+        <AuthProvider>
+          <AudioProvider>
+            <ProgramProvider>
+              <Stack screenOptions={{ 
+                headerShown: false,
+                contentStyle: { backgroundColor: COLORS.background }
+              }}>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(app)" options={{ headerShown: false }} />
+              </Stack>
+              <StatusBar style="light" />
+            </ProgramProvider>
+          </AudioProvider>
+        </AuthProvider>
+      </View>
+    </SafeAreaProvider>
   );
 }
 

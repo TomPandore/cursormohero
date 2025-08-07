@@ -76,8 +76,9 @@ export default function LoginScreen() {
       >
         <KeyboardAvoidingView
           style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
               <Image 
@@ -183,8 +184,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: SPACING.lg,
-    justifyContent: 'center',
-    paddingTop: 0,
+    justifyContent: 'flex-start', // Au lieu de center pour éviter la zone grise
+    paddingTop: SPACING.xl * 2, // Ajouter du padding en haut pour centrer visuellement
+    minHeight: '100%', // S'assurer que le contenu prend au moins toute la hauteur
   },
   header: {
     alignItems: 'center',

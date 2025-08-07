@@ -17,6 +17,8 @@ interface ProgramContextProps {
   getCurrentDayRitual: () => Promise<DailyRitual | null>;
   updateExerciseProgress: (exerciseId: string, reps: number) => void;
   completeDay: () => Promise<boolean | void>;
+  reloadData: () => Promise<void>;
+  resetAndReload: () => Promise<void>;
 }
 
 const defaultContext: ProgramContextProps = {
@@ -29,6 +31,8 @@ const defaultContext: ProgramContextProps = {
   getCurrentDayRitual: async () => null,
   updateExerciseProgress: () => {},
   completeDay: async () => {},
+  reloadData: async () => {},
+  resetAndReload: async () => {},
 };
 
 const ProgramContext = createContext<ProgramContextProps>(defaultContext);
@@ -390,6 +394,9 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
           lastUpdated: new Date()
         }]);
         
+        // Vider le rituel courant pour forcer un rechargement avec les nouveaux exercices
+        setCurrentRitual(null);
+        
         // Mettre à jour le profil dans la base de données
         const updateData = {
           progress: { 
@@ -589,7 +596,8 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
           image_url,
           valeur_cible,
           video_url,
-          ordre
+          ordre,
+          is_duration_based
         )
       `)
       .eq('programme_id', currentProgram.id)
@@ -681,7 +689,8 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
           videoUrl: ex.video_url || null,
           targetReps: ex.valeur_cible,
           completedReps: prog?.valeur_realisee || 0,
-          order: ex.ordre || 0
+          order: ex.ordre || 0,
+          isDurationBased: ex.is_duration_based || false
         };
         return formattedExercise;
       });
@@ -1066,6 +1075,21 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         getCurrentDayRitual,
         updateExerciseProgress,
         completeDay,
+        reloadData: loadData,
+        resetAndReload: async () => {
+          console.log('🔄 RESET COMPLET du contexte...');
+          // Vider TOUT l'état
+          setPrograms([]);
+          setCurrentProgram(null);
+          setUserPrograms([]);
+          setCurrentRitual(null);
+          setIsLoading(true);
+          
+          // Attendre un peu puis recharger complètement
+          setTimeout(async () => {
+            await loadData();
+          }, 100);
+        },
       }}
     >
       {children}
