@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  gender?: 'homme' | 'femme' | null;
   clanId: string | null;
   totalDaysCompleted: number;
   currentProgramId?: string;
@@ -18,6 +19,7 @@ export interface Program {
   category: 'discovery' | 'premium';
   focus: string[];
   imageUrl: string;
+  imageVoieFemme?: string | null;
   level: 'Facile' | 'Moyen' | 'Extrême' | 'Progressif';
   clan_id?: string;
   details: {

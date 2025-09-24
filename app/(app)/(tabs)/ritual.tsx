@@ -49,7 +49,8 @@ export default function DailyRitualScreen() {
     updateExerciseProgress,
     completeDay,
     reloadData,
-    resetAndReload
+    resetAndReload,
+    submitDayFeedback
   } = useProgram();
   
   const { user } = useAuth();
@@ -63,6 +64,8 @@ export default function DailyRitualScreen() {
   const [showProgramCompleted, setShowProgramCompleted] = useState(false);
   const [showExerciseDetails, setShowExerciseDetails] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<null | 'hard' | 'ok' | 'easy'>(null);
 
   // États pour le tutorial d'onboarding
   const [showTutorial, setShowTutorial] = useState(false);
@@ -221,6 +224,26 @@ export default function DailyRitualScreen() {
   // Fonction pour fermer l'écran Bamayé
   const handleCloseCongratulations = () => {
     setShowCongratulations(false);
+  };
+
+  // Gestion du feedback de difficulté
+  const handleFeedback = async (choice: 'hard' | 'ok' | 'easy') => {
+    try {
+      if (feedbackSubmitting) return;
+      setFeedbackSubmitting(true);
+      await submitDayFeedback(choice);
+      setFeedbackGiven(choice);
+      Alert.alert('Merci pour ton retour',
+        choice === 'hard' ? 'On ajuste un peu à la baisse pour demain.'
+        : choice === 'easy' ? 'On augmente un peu le défi pour demain.'
+        : 'Parfait, on garde ce rythme !'
+      );
+    } catch (e) {
+      console.error('Erreur lors de l\'envoi du feedback:', e);
+      Alert.alert('Oups', 'Impossible d\'enregistrer ton retour pour le moment.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
   };
   
   // Vérifier si le programme est réellement terminé (jour actuel > durée totale)
@@ -462,10 +485,37 @@ export default function DailyRitualScreen() {
               <Text style={styles.bamayeMessage}>
                 Tu as terminé tous tes rituels du jour, reviens demain pour continuer à progresser !
               </Text>
+              <Text style={styles.feedbackTitle}>Comment était l'intensité des rituels ?</Text>
+              <View style={styles.feedbackRow}>
+                <Button
+                  title={feedbackGiven === 'hard' ? 'Trop dur ✅' : 'Trop dur'}
+                  onPress={() => handleFeedback('hard')}
+                  style={[styles.feedbackButton, { backgroundColor: '#000' }, feedbackGiven === 'hard' && { opacity: 0.9 }]}
+                  disabled={feedbackSubmitting}
+                />
+                <Button
+                  title={feedbackGiven === 'ok' ? 'Bien ✅' : 'Bien'}
+                  onPress={() => handleFeedback('ok')}
+                  style={[styles.feedbackButton, { backgroundColor: '#000' }, feedbackGiven === 'ok' && { opacity: 0.9 }]}
+                  disabled={feedbackSubmitting}
+                />
+                <Button
+                  title={feedbackGiven === 'easy' ? 'Trop facile ✅' : 'Trop facile'}
+                  onPress={() => handleFeedback('easy')}
+                  style={[styles.feedbackButton, { backgroundColor: '#000' }, feedbackGiven === 'easy' && { opacity: 0.9 }]}
+                  disabled={feedbackSubmitting}
+                />
+              </View>
+              {!feedbackGiven && (
+                <Text style={styles.feedbackHint}>
+                  Donne ton avis pour pouvoir terminer.
+                </Text>
+              )}
               <Button
                 title="Terminer"
                 onPress={handleCloseCongratulations}
-                style={styles.bamayeButton}
+                style={[styles.bamayeButton, { marginTop: SPACING.md }]}
+                disabled={!feedbackGiven || feedbackSubmitting}
                 fullWidth
               />
             </View>
@@ -801,6 +851,31 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
+  },
+  feedbackRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    width: '100%',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  feedbackButton: {
+    flex: 1,
+  },
+  feedbackTitle: {
+    ...FONTS.subheading,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  feedbackHint: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
   },
   bamayeGradient: {
     flex: 1,

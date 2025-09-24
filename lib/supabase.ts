@@ -46,17 +46,49 @@ const auth = new GoTrueClient({
   detectSessionInUrl: false, // Important pour mobile
 })
 
-const db = new PostgrestClient(`${supabaseUrl}/rest/v1`, {
+let db = new PostgrestClient(`${supabaseUrl}/rest/v1`, {
   headers: {
     apikey: supabaseAnonKey,
     Authorization: `Bearer ${supabaseAnonKey}`,
   },
 })
 
-export const supabase = {
+// Assure que PostgREST utilise le JWT utilisateur (RLS) dès qu'il est disponible
+function setPostgrestAuth(token?: string) {
+  // Recrée un client PostgREST avec le bon header Authorization
+  db = new PostgrestClient(`${supabaseUrl}/rest/v1`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${token || supabaseAnonKey}`,
+    },
+  })
+  // Mettre à jour les raccourcis exportés
+  ;(supabase as any).db = db
+  ;(supabase as any).from = (table: string) => db.from(table)
+}
+
+async function syncPostgrestAuthWithSession() {
+  try {
+    const { data: { session } } = await auth.getSession()
+    const accessToken = (session as any)?.access_token || (session as any)?.accessToken
+    setPostgrestAuth(accessToken)
+  } catch {
+    setPostgrestAuth(undefined)
+  }
+}
+
+// Initial sync au chargement du module
+syncPostgrestAuthWithSession()
+
+// Mise à jour automatique sur changement d'état d'auth
+auth.onAuthStateChange((_event, session) => {
+  const accessToken = (session as any)?.access_token || (session as any)?.accessToken
+  setPostgrestAuth(accessToken)
+})
+
+export const supabase: any = {
   auth,
   db,
-
-  // ✅ Raccourcis rétro-compatibles
-  from: db.from.bind(db),
+  // `from` est une fonction dynamique qui référence le client courant
+  from: (table: string) => db.from(table),
 }

@@ -57,6 +57,11 @@ export default function InitiationScreen() {
       </View>
     );
   }
+
+  const programImage =
+    user?.gender === 'femme' && program.imageVoieFemme
+      ? program.imageVoieFemme
+      : program.imageUrl;
   
   const handleStartInitiation = async () => {
     try {
@@ -84,11 +89,11 @@ export default function InitiationScreen() {
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <ImageBackground
-          source={{ uri: program.imageUrl }}
+          source={{ uri: programImage }}
           style={styles.imageBackground}
         >
           <LinearGradient
-            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.5)']}
             style={styles.gradient}
           >
             <View style={styles.headerContent}>
@@ -108,15 +113,8 @@ export default function InitiationScreen() {
         
         <View style={styles.contentContainer}>
           <Text style={styles.initiationText}>
-            Avant de pouvoir choisir ton clan et accéder aux programmes avancés, 
-            tu dois accomplir ce rite d'initiation.
+            Ce rite de passage va te permettre de comprendre le fonctionnement de Mohero.
           </Text>
-          
-          <Text style={styles.durationText}>
-            Programme de <Text style={styles.durationNumber}>{program.duration}</Text> jours
-          </Text>
-          <Text style={styles.description}>{program.description}</Text>
-          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ce que tu vas développer</Text>
             <View style={styles.benefitsContainer}>
@@ -142,12 +140,6 @@ export default function InitiationScreen() {
                 </View>
               </View>
             ))}
-          </View>
-          
-          <View style={styles.warningContainer}>
-            <Text style={styles.warningText}>
-              ⚡ Une fois l'initiation terminée, tu rejoindras officiellement la tribu MoHero
-            </Text>
           </View>
           
           <Button
@@ -237,10 +229,9 @@ const styles = StyleSheet.create({
     ...FONTS.body,
     color: COLORS.primary,
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: SPACING.lg,
     lineHeight: 24,
-    fontStyle: 'italic',
   },
   durationText: {
     ...FONTS.body,

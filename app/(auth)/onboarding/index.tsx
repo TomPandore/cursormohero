@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,7 +6,8 @@ import {
   ImageBackground,
   Dimensions,
   TouchableOpacity,
-  ScrollView
+  ScrollView,
+  ImageSourcePropType
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
@@ -19,36 +20,82 @@ import { ChevronRight } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
-// Utilisons temporairement des images existantes pour l'onboarding
-const slides = [
+interface OnboardingSlide {
+  id: string;
+  title: string;
+  content: string;
+  image: ImageSourcePropType;
+  background: string;
+}
+
+const FEMALE_SLIDES: OnboardingSlide[] = [
   {
     id: '1',
-    title: 'MoHero, un héritage oublié',
-    content: 'Avant les salles, avant les chronos…\nIl y avait Mohero. Une tribu forgée par l\'instinct, le feu, la terre. Ce n\'était pas du sport. C\'était une voie. Aujourd\'hui cette voie, c\'est la tienne.',
+    title: 'Bouge avec ta vie !',
+    content:
+      "Entre le travail, les enfants, la maison... le sport, c'est souvent la première chose qu'on laisse tomber. Pas ici. MoHero s'adapte à ton rythme, pas l'inverse.",
+    image: require('@/assets/slide1-vf.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+  {
+    id: '2',
+    title: "L'héritage Mohero",
+    content:
+      "Avant les salles de sport et les programmes stricts, nos ancêtres bougeaient par instinct. Elles écoutaient leur corps, s'adaptaient à leur environnement.",
+    image: require('@/assets/slide2-vf.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+  {
+    id: '3',
+    title: 'Trace ta voie',
+    content:
+      "C'est cette voie simple, naturelle et puissante que MoHero t'invite à redécouvrir. Deviens l'héroïne de ta vie et rejoins la tribu MoHero.",
+    image: require('@/assets/slide3-vf.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  },
+  {
+    id: '4',
+    title: "Réveil ton instinct",
+    content:
+      "Tu es à la porte de la tribu. Le premier pas est le plus sacré. Laisse derrière toi le bruit du monde et écoute le rythme de tes ancêtres. Ton initiation commence maintenant.",
+    image: require('@/assets/slide5-vf.webp'),
+    background: 'rgba(0,0,0,0.7)'
+  }
+];
+
+const MALE_SLIDES: OnboardingSlide[] = [
+  {
+    id: '1',
+    title: 'Bouge avec ta vie !',
+    content:
+      "Entre le travail, les défis, la maison... le sport est souvent la première chose qu'on laisse tomber. Pas ici. MoHero s'adapte à ton rythme, pas l'inverse.",
     image: require('@/assets/slide1.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
     id: '2',
-    title: 'Bouge comme tu vis',
-    content: 'Ici, pas de séances à cocher. Chaque jour, tu t\'éveilles par le mouvement. Chaque geste est un rite. Chaque effort est sacré. Ton corps doit être prêt. À tout. Toujours.',
+    title: "L'héritage Mohero",
+    content:
+      "Avant les salles de sport et les programmes stricts, nos ancêtres bougeaient par instinct. Ils écoutaient leur corps, s'adaptaient à leur environnement.",
     image: require('@/assets/slide2.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
     id: '3',
     title: 'Trace ta voie',
-    content: 'Ce que tu fais ici ne disparaîtra jamais. Chaque effort grave une empreinte dans ton Totem. Engage-toi. Trace ta voie. Et n\'oublie pas… le ciel n\'est qu\'un début.',
-    image: require('@/assets/slide4.webp'),
+    content:
+      "C'est cette voie simple, naturelle et puissante que MoHero t'invite à redécouvrir. Deviens le héros de ta vie et rejoins la tribu MoHero.",
+    image: require('@/assets/slide3.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
     id: '4',
-    title: 'L\'initiation',
-    content: 'Avant toute chose, découvre les rituels MoHero. Accomplis ton premier jour.\nCe n\'est qu\'après ce rite que tu pourras embrasser ta véritable voie.',    
-    image: require('@/assets/initiation_scene.webp'),
+    title: "L'initiation",
+    content:
+      "Tu es à la porte de la tribu. Le premier pas est le plus sacré. Laisse derrière toi le bruit du monde et écoute le rythme de tes ancêtres. Ton initiation commence maintenant.",
+    image: require('@/assets/slide4.webp'),
     background: 'rgba(0,0,0,0.7)'
-  },
+  }
 ];
 
 export default function OnboardingScreen() {
@@ -56,6 +103,25 @@ export default function OnboardingScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+
+  const slides = useMemo<OnboardingSlide[]>(() => {
+    if (user?.gender === 'homme') {
+      return MALE_SLIDES;
+    }
+
+    if (user?.gender === 'femme') {
+      return FEMALE_SLIDES;
+    }
+
+    return FEMALE_SLIDES;
+  }, [user?.gender]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ x: 0, animated: false });
+    }
+  }, [slides]);
 
   const goToNextSlide = () => {
     const nextIndex = currentIndex + 1;
@@ -104,7 +170,7 @@ export default function OnboardingScreen() {
               resizeMode="cover"
             >
               <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+                colors={['transparent', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.7)']}
                 style={styles.gradientOverlay}
               >
                 <View style={styles.contentContainer}>

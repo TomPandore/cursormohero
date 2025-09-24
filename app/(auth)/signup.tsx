@@ -24,10 +24,16 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [gender, setGender] = useState<'homme' | 'femme' | null>(null);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { signUp, isLoading } = useAuth();
+
+  const genderOptions = [
+    { label: 'Un Homme', value: 'homme' as const },
+    { label: 'Une Femme', value: 'femme' as const },
+  ];
 
   // Validation email robuste
   const isValidEmail = (email: string) => {
@@ -79,8 +85,13 @@ export default function SignupScreen() {
       return;
     }
 
+    if (!gender) {
+      setError('Veuillez sélectionner votre genre');
+      return;
+    }
+
     try {
-      await signUp(name.trim(), email.trim(), password.trim());
+      await signUp(name.trim(), email.trim(), password.trim(), gender);
       // La redirection est gérée dans la fonction signUp vers onboarding
     } catch (err: any) {
       // Gestion d'erreurs spécifiques
@@ -101,12 +112,12 @@ export default function SignupScreen() {
 
   return (
     <ImageBackground 
-      source={require('@/assets/welcome3.webp')} 
+      source={require('@/assets/images/background-home-v2.png')} 
       style={styles.backgroundImage}
       resizeMode="cover"
     >
       <LinearGradient
-        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+        colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.9)']}
         style={styles.overlay}
       >
         <KeyboardAvoidingView
@@ -114,13 +125,7 @@ export default function SignupScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.header}>
-              <Image 
-                source={require('@/assets/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
+            
 
             <View style={styles.formContainer}>
               <Text style={styles.questionText}>
@@ -152,6 +157,32 @@ export default function SignupScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Tu es ?</Text>
+                <View style={styles.genderOptionsContainer}>
+                  {genderOptions.map((option, index) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.genderOption,
+                        gender === option.value && styles.genderOptionSelected,
+                        index === genderOptions.length - 1 && styles.genderOptionLast,
+                      ]}
+                      onPress={() => setGender(option.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.genderOptionText,
+                          gender === option.value && styles.genderOptionTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               <View style={styles.inputContainer}>
@@ -288,6 +319,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     color: COLORS.text,
     ...FONTS.body,
+  },
+  genderOptionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  genderOption: {
+    flex: 1,
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: BORDER_RADIUS.sm,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    marginRight: SPACING.sm,
+  },
+  genderOptionLast: {
+    marginRight: 0,
+  },
+  genderOptionSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.card,
+  },
+  genderOptionText: {
+    ...FONTS.body,
+    color: COLORS.textSecondary,
+  },
+  genderOptionTextSelected: {
+    color: COLORS.text,
+    fontWeight: '600',
   },
   passwordContainer: {
     flexDirection: 'row',

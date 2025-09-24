@@ -5,11 +5,13 @@ import { Platform } from 'react-native';
 import { User } from '@/types';
 import { supabase } from '@/lib/supabase';
 
+type GenderValue = 'homme' | 'femme';
+
 interface AuthContextProps {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string, gender: GenderValue) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserClan: (clanId: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -114,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: profile.id,
           name: profile.name,
           email: profile.email,
+          gender: profile.genre ?? null,
           clanId: profile.clan_id,
           totalDaysCompleted: progress?.totalCompletedDays || 0,
           onboardingDone: profile.onboarding_done || false,
@@ -172,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: profile.id,
             name: profile.name,
             email: profile.email,
+            gender: profile.genre ?? null,
             clanId: profile.clan_id,
             totalDaysCompleted: progress?.totalCompletedDays || 0,
             onboardingDone: profile.onboarding_done || false,
@@ -207,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (name: string, email: string, password: string) => {
+  const signUp = async (name: string, email: string, password: string, gender: GenderValue) => {
     try {
       setIsLoading(true);
       
@@ -217,7 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: {
-            name: name
+            name: name,
+            genre: gender
           }
         }
       });
@@ -236,12 +241,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Si le profil existe déjà, on l'utilise directement
           if (existingProfile) {
             console.log('Profil existant trouvé, utilisation de celui-ci');
-            
+
             const progress = existingProfile.progress as { totalCompletedDays: number };
+            let effectiveGender = existingProfile.genre ?? null;
+            if (existingProfile.genre !== gender) {
+              await supabase
+                .from('profiles')
+                .update({ genre: gender })
+                .eq('id', existingProfile.id);
+              effectiveGender = gender;
+            }
             const userData: User = {
               id: existingProfile.id,
               name: existingProfile.name,
               email: existingProfile.email,
+              gender: effectiveGender,
               clanId: existingProfile.clan_id,
               totalDaysCompleted: progress?.totalCompletedDays || 0,
               onboardingDone: existingProfile.onboarding_done || false,
@@ -262,6 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: authData.user.id,
               name: name,
               email: email,
+              genre: gender,
               progress: { totalCompletedDays: 0 },
               onboarding_done: false
             });
@@ -271,12 +286,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw profileError;
           }
 
-        const userData: User = {
-          id: authData.user.id,
-          name: name,
-          email: email,
-          clanId: null,
-          totalDaysCompleted: 0,
+          const userData: User = {
+            id: authData.user.id,
+            name: name,
+            email: email,
+            gender: gender,
+            clanId: null,
+            totalDaysCompleted: 0,
             onboardingDone: false,
             initiationCompleted: false
           };
@@ -296,17 +312,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               
             if (existingUser) {
               const progress = existingUser.progress as { totalCompletedDays: number };
+              let effectiveGender = existingUser.genre ?? null;
+              if (existingUser.genre !== gender) {
+                await supabase
+                  .from('profiles')
+                  .update({ genre: gender })
+                  .eq('id', existingUser.id);
+                effectiveGender = gender;
+              }
               const userData: User = {
                 id: existingUser.id,
                 name: existingUser.name,
                 email: existingUser.email,
+                gender: effectiveGender,
                 clanId: existingUser.clan_id,
                 totalDaysCompleted: progress?.totalCompletedDays || 0,
                 onboardingDone: existingUser.onboarding_done || false,
                 initiationCompleted: existingUser.initiation_completed || false
-        };
-        
-        setUser(userData);
+              };
+
+              setUser(userData);
               
               // Toujours rediriger vers l'onboarding, peu importe l'état précédent
               router.replace('/(auth)/onboarding');

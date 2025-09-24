@@ -234,6 +234,10 @@ export default function InitiationRitualScreen() {
   }
   
   const userProgram = userPrograms.find(up => up.programId === currentProgram.id);
+  const headerImage =
+    user?.gender === 'femme' && currentProgram.imageVoieFemme
+      ? currentProgram.imageVoieFemme
+      : currentProgram.imageUrl;
   const dayProgress = userProgram ? `JOUR ${userProgram.currentDay} / ${currentProgram.duration}` : '';
   
   const calculateDailyProgress = () => {
@@ -355,14 +359,13 @@ export default function InitiationRitualScreen() {
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <ImageBackground 
-          source={{ uri: currentProgram.imageUrl }}
+          source={{ uri: headerImage }}
           style={styles.headerBackground}
         >
           <View style={styles.headerOverlay}>
             <View style={styles.headerContent}>
               <Text style={styles.programTitle}>{currentProgram.title}</Text>
               <Text style={styles.dayProgress}>{dayProgress}</Text>
-              <Text style={styles.initiationLabel}>Rite d'initiation</Text>
             </View>
           </View>
         </ImageBackground>
@@ -378,7 +381,7 @@ export default function InitiationRitualScreen() {
           <View style={styles.quoteSection}>
             <View style={styles.quoteContent}>
               <Image 
-                source={require('@/assets/mentor-mohero.png')} 
+                source={user?.gender === 'femme' ? require('@/assets/tara.webp') : require('@/assets/mentor-mohero.png')} 
                 style={styles.mentorImage}
                 resizeMode="contain"
               />

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mohero",
     "slug": "mohero-app",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.mohero.app",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Cette app ne nécessite pas l'accès à la caméra."
@@ -25,7 +25,7 @@
       },
       "icon": "./assets/images/icon.png",
       "package": "com.mohero.app",
-      "versionCode": 5
+      "versionCode": 12
     },
     "web": {
       "bundler": "metro",

@@ -1,13 +1,13 @@
-import { View, Text, StyleSheet, Image, ImageBackground, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
 import { Link } from 'expo-router';
 import { COLORS } from '@/constants/Colors';
 import { FONTS, SPACING } from '@/constants/Layout';
 import Button from '@/components/Button';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Video } from 'expo-av';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useEffect } from 'react';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   // Animation du logo
@@ -20,46 +20,38 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <ImageBackground
-      source={require('@/assets/welcome5.webp')}
-      style={styles.background}
-      resizeMode="cover"
-    >
-         
-
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Animated.Image source={require('@/assets/logo-vertical.png')} style={[styles.logoImage, animatedLogoStyle]} resizeMode="contain" />
-          <Text style={styles.slogan}>Que le ciel soit ta seule limite</Text>
-        </View>
-
-        <View style={styles.spacer} />
-
-        <View style={styles.actions}>
-          <Link href="/(auth)/signup" asChild>
-            <Button 
-              title="Rejoindre la tribu" 
-              fullWidth
-            />
-          </Link>
-
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Déjà membre ?</Text>
-            <Link href="/(auth)/login" asChild>
-              <Text style={styles.loginLink}>Se connecter</Text>
+    <View style={styles.background}>
+      <Video
+        source={require('@/assets/mohero-teaser.mp4')}
+        style={styles.video}
+        shouldPlay
+        isLooping
+        isMuted
+        resizeMode="cover"
+      />
+      
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <View style={styles.actions}>
+            <Link href="/(auth)/signup" asChild>
+              <Button 
+                title="Rejoins le mouvement" 
+                fullWidth
+              />
             </Link>
+
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>Déjà membre ?</Text>
+              <Link href="/(auth)/login" asChild>
+                <Text style={styles.loginLink}>Se connecter</Text>
+              </Link>
+            </View>
           </View>
         </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
-
-// Calculs responsives basés sur la taille de l'écran
-const isSmallScreen = screenHeight < 700;
-const logoSize = isSmallScreen ? Math.min(screenWidth * 0.4, 150) : Math.min(screenWidth * 0.5, 200);
-const topPadding = isSmallScreen ? SPACING.xl : SPACING.xl * 2;
-const sloganFontSize = isSmallScreen ? 16 : 20;
 
 const styles = StyleSheet.create({
   background: {
@@ -67,59 +59,41 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  video: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Overlay sombre pour améliorer la lisibilité
+  },
   container: {
     flex: 1,
+    justifyContent: 'flex-end',
     padding: SPACING.lg,
-    paddingBottom: SPACING.xl, // Assurer une marge en bas
-  },
-  content: {
-    alignItems: 'center',
-    paddingTop: topPadding,
-    minHeight: screenHeight * 0.4, // Prendre au minimum 40% de l'écran
-  },
-  logoImage: {
-    width: logoSize,
-    height: logoSize,
-    marginBottom: isSmallScreen ? -10 : -20,
-  },
-  slogan: {
-    ...FONTS.body,
-    color: '#fff',
-    fontSize: sloganFontSize,
-    textAlign: 'center',
-    marginTop: 0,
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-    paddingHorizontal: SPACING.md,
-  },
-  spacer: {
-    flex: 1, // Prend l'espace restant pour pousser les actions vers le bas
-    minHeight: isSmallScreen ? SPACING.lg : SPACING.xl * 2,
+    paddingBottom: SPACING.xl * 2, // Plus d'espace en bas pour éviter la zone de navigation
   },
   actions: {
     width: '100%',
-    paddingBottom: SPACING.md, // Marge de sécurité au-dessus de la navigation
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.lg,
-    paddingVertical: SPACING.sm, // Augmenter la zone de touch
   },
   loginText: {
     ...FONTS.body,
     color: COLORS.textSecondary,
-    fontSize: isSmallScreen ? 14 : 16,
   },
   loginLink: {
     ...FONTS.body,
     color: COLORS.primary,
     marginLeft: SPACING.xs,
-    fontSize: isSmallScreen ? 14 : 16,
-    fontWeight: '600',
-    paddingHorizontal: SPACING.xs, // Augmenter la zone de touch
-    paddingVertical: SPACING.xs,
   },
 });

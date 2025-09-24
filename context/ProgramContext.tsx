@@ -17,6 +17,7 @@ interface ProgramContextProps {
   getCurrentDayRitual: () => Promise<DailyRitual | null>;
   updateExerciseProgress: (exerciseId: string, reps: number) => void;
   completeDay: () => Promise<boolean | void>;
+  submitDayFeedback: (feedback: 'hard' | 'ok' | 'easy') => Promise<void>;
   reloadData: () => Promise<void>;
   resetAndReload: () => Promise<void>;
 }
@@ -31,6 +32,7 @@ const defaultContext: ProgramContextProps = {
   getCurrentDayRitual: async () => null,
   updateExerciseProgress: () => {},
   completeDay: async () => {},
+  submitDayFeedback: async () => {},
   reloadData: async () => {},
   resetAndReload: async () => {},
 };
@@ -117,6 +119,7 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
           category: p.type === 'Découverte' ? 'discovery' : 'premium',
           focus: p.tags || [],
           imageUrl: p.image_url,
+          imageVoieFemme: p.image_voie_femme ?? null,
           details: {
             benefits: p.resultats || [],
             phases: p.parcours_resume?.map((phase: { titre: string; texte: string; sous_titre: string }) => ({
@@ -674,20 +677,57 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Trier et formater les exercices
+    // Récupérer le facteur de difficulté utilisateur pour ce programme (par défaut 1.0)
+    let difficultyFactor = 1.0;
+    try {
+      const { data: adj, error: adjError } = await supabase
+        .from('user_program_adjustements')
+        .select('difficulty_factor')
+        .eq('user_id', user.id)
+        .eq('programme_id', currentProgram.id)
+        .single();
+      if (!adjError && adj?.difficulty_factor) {
+        difficultyFactor = Number(adj.difficulty_factor) || 1.0;
+      } else if (adjError) {
+        console.log('Pas de facteur d\'ajustement trouvé, utilisation de 1.0:', adjError?.message);
+      }
+      // Bornes de sécurité
+      if (difficultyFactor < 0.6) difficultyFactor = 0.6;
+      if (difficultyFactor > 1.6) difficultyFactor = 1.6;
+    } catch (e) {
+      console.log('Erreur lors de la récupération du facteur de difficulté, utilisation de 1.0:', e);
+      difficultyFactor = 1.0;
+    }
+
+    // Helper: certains exercices bilatéraux (ex: fentes/lunges) doivent avoir une cible paire
+    const requiresEven = (name: string, isDurationBased: boolean): boolean => {
+      if (isDurationBased) return false;
+      const n = (name || '').toLowerCase();
+      const keywords = ['fente', 'fentes', 'lunge', 'lunges', 'split squat', 'alterné', 'alternée', 'alternating'];
+      return keywords.some(k => n.includes(k));
+    };
+
+    // Trier et formater les exercices (en appliquant le facteur sur la cible)
     const exercicesTries = (joursData.exercices || [])
       .sort((a: any, b: any) => (a.ordre || 0) - (b.ordre || 0))
       .map((ex: any) => {
         const prog = progression.find(p => p.exercice_id === ex.id);
         console.log('Exercice:', ex.nom, 'ID:', ex.id, 'Progression trouvée:', prog);
         
+        const baseTarget = Number(ex.valeur_cible) || 0;
+        let adjustedTarget = Math.max(1, Math.round(baseTarget * difficultyFactor));
+        // Si l'exercice est bilatéral (heuristique), forcer une valeur paire
+        if (requiresEven(ex.nom, !!ex.is_duration_based)) {
+          adjustedTarget = Math.max(2, Math.round(adjustedTarget / 2) * 2);
+        }
+
         const formattedExercise = {
           id: ex.id,
           name: ex.nom,
           description: ex.description,
           imageUrl: ex.image_url,
           videoUrl: ex.video_url || null,
-          targetReps: ex.valeur_cible,
+          targetReps: adjustedTarget,
           completedReps: prog?.valeur_realisee || 0,
           order: ex.ordre || 0,
           isDurationBased: ex.is_duration_based || false
@@ -1005,6 +1045,65 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Soumettre le feedback utilisateur (hard | ok | easy) et ajuster le facteur
+  const submitDayFeedback = async (feedback: 'hard' | 'ok' | 'easy') => {
+    try {
+      if (!currentProgram) {
+        console.warn('submitDayFeedback: aucun programme courant');
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
+        console.warn('submitDayFeedback: utilisateur non connecté');
+        return;
+      }
+
+      // Récupérer le facteur courant (avec JWT pour RLS)
+      let currentFactor = 1.0;
+      try {
+        const { data: adj, error: adjError } = await supabase
+          .from('user_program_adjustements')
+          .select('difficulty_factor')
+          .eq('user_id', user.id)
+          .eq('programme_id', currentProgram.id)
+          .single();
+        if (!adjError && adj?.difficulty_factor) {
+          currentFactor = Number(adj.difficulty_factor) || 1.0;
+        }
+      } catch (e) {
+        console.log('submitDayFeedback: pas de facteur existant, utilisation 1.0');
+      }
+
+      // Calcul du nouveau facteur (multiplicateurs configurables)
+      const HARD_MULTIPLIER = 0.9;   // -10%
+      const EASY_MULTIPLIER = 1.2;   // +20%
+      const OK_MULTIPLIER = 1.0;     // inchangé
+      const multiplier = feedback === 'hard' ? HARD_MULTIPLIER : feedback === 'easy' ? EASY_MULTIPLIER : OK_MULTIPLIER;
+      let newFactor = Number((currentFactor * multiplier).toFixed(2));
+      if (newFactor < 0.6) newFactor = 0.6;
+      if (newFactor > 1.6) newFactor = 1.6;
+
+      // Upsert en base (clé composite user_id + programme_id)
+      const { error: upsertError } = await supabase
+        .from('user_program_adjustements')
+        .upsert({
+          user_id: user.id,
+          programme_id: currentProgram.id,
+          difficulty_factor: newFactor,
+          last_feedback: feedback,
+        }, { onConflict: 'user_id,programme_id' });
+
+      if (upsertError) {
+        console.error('submitDayFeedback: erreur lors de l\'upsert:', upsertError);
+      } else {
+        console.log('submitDayFeedback: facteur mis à jour →', newFactor, 'feedback:', feedback);
+      }
+    } catch (error) {
+      console.error('submitDayFeedback: erreur inattendue', error);
+    }
+  };
+
   // Fonction désactivée temporairement en attendant de résoudre les problèmes
   /*
   const checkAndUpdateDay = async (userId: string, userProgram: UserProgram, program: Program) => {
@@ -1075,6 +1174,7 @@ export function ProgramProvider({ children }: { children: ReactNode }) {
         getCurrentDayRitual,
         updateExerciseProgress,
         completeDay,
+        submitDayFeedback,
         reloadData: loadData,
         resetAndReload: async () => {
           console.log('🔄 RESET COMPLET du contexte...');
