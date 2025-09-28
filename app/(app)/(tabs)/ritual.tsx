@@ -19,7 +19,6 @@ import Button from '@/components/Button';
 import { useProgram } from '@/context/ProgramContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/context/AudioContext';
-import OnboardingTutorial from '@/components/OnboardingTutorial';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -67,10 +66,6 @@ export default function DailyRitualScreen() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<null | 'hard' | 'ok' | 'easy'>(null);
 
-  // États pour le tutorial d'onboarding
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [tutorialLoading, setTutorialLoading] = useState(true);
-  
   // ID du programme d'initiation qu'il ne faut pas traiter
   const INITIATION_PROGRAM_ID = 'ecc043c9-61ac-429c-8811-530a4896fd04';
   
@@ -102,41 +97,6 @@ export default function DailyRitualScreen() {
     fetchRitual();
   }, [currentProgram, userPrograms, isForceUpdating]);
 
-  // Vérifier si le tutorial doit être affiché
-  useEffect(() => {
-    const checkTutorialStatus = async () => {
-      if (!user?.id) {
-        setTutorialLoading(false);
-        return;
-      }
-
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('ritual_tutorial_completed')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Erreur lors de la vérification du tutorial:', error);
-          setTutorialLoading(false);
-          return;
-        }
-
-        // Si ritual_tutorial_completed est NULL, on affiche le tutorial
-        const shouldShowTutorial = profile?.ritual_tutorial_completed === null;
-        setShowTutorial(shouldShowTutorial);
-        setTutorialLoading(false);
-
-      } catch (error) {
-        console.error('Erreur lors de la vérification du tutorial:', error);
-        setTutorialLoading(false);
-      }
-    };
-
-    checkTutorialStatus();
-  }, [user?.id]);
-  
   // Effet pour détecter quand tous les exercices sont terminés
   useEffect(() => {
     // Vérifier si tous les exercices sont complétés
@@ -352,49 +312,6 @@ export default function DailyRitualScreen() {
     router.push('/(app)/(tabs)/voies');
   };
 
-  // Fonctions pour gérer le tutorial
-  const handleTutorialComplete = async () => {
-    if (!user?.id) return;
-
-    try {
-      // Marquer le tutorial comme terminé dans la BDD
-      const { error } = await supabase
-        .from('profiles')
-        .update({ ritual_tutorial_completed: true })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Erreur lors de la sauvegarde du tutorial:', error);
-      }
-
-      setShowTutorial(false);
-    } catch (error) {
-      console.error('Erreur lors de la completion du tutorial:', error);
-      setShowTutorial(false);
-    }
-  };
-
-  const handleTutorialSkip = async () => {
-    if (!user?.id) return;
-
-    try {
-      // Marquer le tutorial comme terminé même si skippé
-      const { error } = await supabase
-        .from('profiles')
-        .update({ ritual_tutorial_completed: true })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Erreur lors de la sauvegarde du tutorial:', error);
-      }
-
-      setShowTutorial(false);
-    } catch (error) {
-      console.error('Erreur lors du skip du tutorial:', error);
-      setShowTutorial(false);
-    }
-  };
-  
   if (isLoading) {
     return (
       <View style={styles.emptyContainer}>
@@ -408,7 +325,7 @@ export default function DailyRitualScreen() {
       <View style={styles.noProgramContainer}>
         <View style={styles.mentorWrapper}>
           <Image 
-            source={require('@/assets/mentor-mohero.png')} 
+            source={user?.gender === 'femme' ? require('@/assets/guide-vf.webp') : require('@/assets/mentor-mohero.png')} 
             style={styles.mentorImageLarge}
             resizeMode="cover"
           />
@@ -604,7 +521,7 @@ export default function DailyRitualScreen() {
       >
         <View style={styles.quoteContent}>
           <Image 
-            source={require('@/assets/mentor-mohero.png')} 
+            source={user?.gender === 'femme' ? require('@/assets/tara.webp') : require('@/assets/mentor-mohero.png')} 
             style={[
               styles.mentorImage,
               isRitualComplete() && styles.completedMentorImage
@@ -684,14 +601,6 @@ export default function DailyRitualScreen() {
       </View>
     )}
 
-    {/* Tutorial d'onboarding */}
-    {!tutorialLoading && (
-      <OnboardingTutorial
-        visible={showTutorial}
-        onComplete={handleTutorialComplete}
-        onSkip={handleTutorialSkip}
-      />
-    )}
     </View>
   );
 }

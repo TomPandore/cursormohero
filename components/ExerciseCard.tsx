@@ -165,11 +165,11 @@ export function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
     const clanName = clanInfo.nom_clan.toLowerCase();
     
     if (clanName.includes('onotka')) {
-      return "Pour devenir fort, tu dois réaliser ce mouvement lentement.";
+      return "On réalise e mouvement lentement pour gagner en force et en puissance.";
     } else if (clanName.includes('ekloa')) {
-      return "Pour être explosif, tu dois enchaîner les répétitions le plus rapidement possible.";
+      return "On enchaine les répétitions le plus rapidement possible, pour devenir explosif";
     } else if (clanName.includes('okwaho') || clanName.includes('okwaho')) {
-      return "Trouve le juste équilibre entre la vitesse et la force, trouve le rythme qui te correspond.";
+      return "On trouve le juste équilibre entre la vitesse et la force.";
     }
     
     return "Trouve ton propre rythme pour exécuter ce mouvement.";
@@ -266,13 +266,13 @@ export function ExerciseDetails({ exercise, onClose }: ExerciseDetailsProps) {
           <View style={styles.mentorSection}>
             <View style={styles.mentorContent}>
               <Image 
-                source={require('@/assets/mentor-mohero.png')} 
+                source={user?.gender === 'femme' ? require('@/assets/tara.webp') : require('@/assets/mentor-mohero.png')} 
                 style={styles.mentorAvatar}
                 resizeMode="contain"
               />
               <View style={styles.mentorTextContainer}>
                 <Text style={[styles.clanText, { color: getClanColor(clanInfo?.nom_clan) }]}>
-                  Tu es un {clanInfo?.nom_clan || 'guerrier'}
+                  Chez les {clanInfo?.nom_clan || 'guerrier'}
                 </Text>
                 <Text style={styles.mentorAdvice}>{getMentorAdvice()}</Text>
               </View>
@@ -803,7 +803,7 @@ export default function ExerciseCard({ exercise, onUpdateProgress, onPressDetail
               <View style={styles.mentorSection}>
                 <View style={styles.mentorContent}>
                   <Image 
-                    source={require('@/assets/mentor-mohero.png')} 
+                    source={user?.gender === 'femme' ? require('@/assets/tara.webp') : require('@/assets/mentor-mohero.png')} 
                     style={styles.mentorAvatar}
                     resizeMode="contain"
                   />

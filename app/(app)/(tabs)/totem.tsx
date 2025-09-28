@@ -227,14 +227,18 @@ export default function TotemScreen() {
       <View style={styles.clanInfoContainer}>
         <View style={styles.avatarContainer}>
           <Image 
-            source={{ uri: 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png' }}
+            source={
+              user?.gender === 'femme'
+                ? require('@/assets/tara.webp')
+                : { uri: 'https://mohero.fr/wp-content/uploads/2025/05/avatar-base.png' }
+            }
             style={[styles.avatarImage, { borderColor: getClanColor() }]}
           />
         </View>
         
         <View style={styles.clanInfoCard}>
           <Text style={[styles.clanTitle, { color: getClanColor() }]}>
-            {user.name.toUpperCase()}, TU ES UN {clanData.nom_clan}
+            {user.name.toUpperCase()}, TU ES MEMBRE DU CLAN {clanData.nom_clan}
           </Text>
           <Text style={styles.ritualText}>{clanData.rituel_entree}</Text>
         </View>

@@ -32,10 +32,9 @@ import Animated, {
   SlideInDown
 } from 'react-native-reanimated';
 import { DailyRitual, Exercise } from '@/types';
-import { ArrowLeft } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
-import { Audio } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
+import OnboardingTutorial from '@/components/OnboardingTutorial';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const INITIATION_PROGRAM_ID = 'ecc043c9-61ac-429c-8811-530a4896fd04';
@@ -60,6 +59,8 @@ export default function InitiationRitualScreen() {
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialLoading, setTutorialLoading] = useState(true);
   
   // Animations
   const titleOpacity = useSharedValue(0);
@@ -91,6 +92,38 @@ export default function InitiationRitualScreen() {
     
     fetchRitual();
   }, [currentProgram, userPrograms]);
+
+  useEffect(() => {
+    const checkTutorialStatus = async () => {
+      if (!user?.id) {
+        setTutorialLoading(false);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('ritual_tutorial_completed')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error("Erreur lors de la vérification du tutorial d'initiation:", error);
+          setTutorialLoading(false);
+          return;
+        }
+
+        const shouldShowTutorial = profile?.ritual_tutorial_completed === null;
+        setShowTutorial(shouldShowTutorial);
+        setTutorialLoading(false);
+      } catch (error) {
+        console.error("Erreur lors de la vérification du tutorial d'initiation:", error);
+        setTutorialLoading(false);
+      }
+    };
+
+    checkTutorialStatus();
+  }, [user?.id]);
   
   // Réinitialiser dayCompleted lorsque le rituel change
   useEffect(() => {
@@ -272,6 +305,52 @@ export default function InitiationRitualScreen() {
       Alert.alert('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
     }
   };
+
+  const handleTutorialComplete = async () => {
+    if (!user?.id) {
+      setShowTutorial(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ritual_tutorial_completed: true })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Erreur lors de la sauvegarde du tutorial:', error);
+      }
+
+      setShowTutorial(false);
+    } catch (error) {
+      console.error('Erreur lors de la completion du tutorial:', error);
+      setShowTutorial(false);
+    }
+  };
+
+  const handleTutorialSkip = async () => {
+    if (!user?.id) {
+      setShowTutorial(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ritual_tutorial_completed: true })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Erreur lors de la sauvegarde du tutorial:', error);
+      }
+
+      setShowTutorial(false);
+    } catch (error) {
+      console.error('Erreur lors du skip du tutorial:', error);
+      setShowTutorial(false);
+    }
+  };
   
   // Écran de félicitations après completion du premier jour
   if (showCongratulations && dayCompleted) {
@@ -284,7 +363,7 @@ export default function InitiationRitualScreen() {
         />
         <View style={styles.congratsContainer}>
           <ImageBackground
-            source={require('@/assets/welcome-mohero.webp')}
+            source={user?.gender === 'femme' ? require('@/assets/welcome-vf.webp') : require('@/assets/welcome-mohero.webp')}
             style={styles.congratsBackground}
             resizeMode="cover"
           >
@@ -408,6 +487,15 @@ export default function InitiationRitualScreen() {
 
         </View>
       </ScrollView>
+
+      {!tutorialLoading && (
+        <OnboardingTutorial
+          visible={showTutorial}
+          onComplete={handleTutorialComplete}
+          onSkip={handleTutorialSkip}
+        />
+      )}
+
       {selectedExercise && (
         <ExerciseDetails
           exercise={selectedExercise}

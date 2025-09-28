@@ -31,6 +31,7 @@ interface Clan {
   tags?: string[];
   description: string;
   image_url: string;
+  image_vf?: string | null;
 }
 
 export default function ClanSelectionScreen() {
@@ -299,6 +300,9 @@ export default function ClanSelectionScreen() {
           onScroll={handleScroll}
           renderItem={({ item, index }) => (
             <View style={{ width: CARD_WIDTH, marginRight: SPACING.md }}>
+              {
+                /* Determine image based on user gender */
+              }
               <ClanCard
                 clan={item}
                 isSelected={selectedClanId === item.id}
@@ -306,6 +310,9 @@ export default function ClanSelectionScreen() {
                 position={index}
                 scrollPosition={scrollX}
                 cardWidth={CARD_WIDTH + SPACING.md}
+                backgroundImageUri={
+                  user?.gender === 'femme' && item.image_vf ? item.image_vf : item.image_url
+                }
               />
             </View>
           )}

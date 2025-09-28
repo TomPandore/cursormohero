@@ -30,6 +30,7 @@ interface ClanCardProps {
   position: number;
   scrollPosition: Animated.SharedValue<number>;
   cardWidth: number;
+  backgroundImageUri?: string;
 }
 
 export default function ClanCard({
@@ -39,6 +40,7 @@ export default function ClanCard({
   position,
   scrollPosition,
   cardWidth,
+  backgroundImageUri,
 }: ClanCardProps) {
   const animatedStyle = useAnimatedStyle(() => {
     const scale = interpolate(
@@ -101,7 +103,7 @@ export default function ClanCard({
         ]}
       >
         <ImageBackground
-          source={{ uri: clan.image_url }}
+          source={{ uri: backgroundImageUri || clan.image_url }}
           style={styles.imageBackground}
           imageStyle={styles.imageStyle}
         >

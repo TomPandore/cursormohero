@@ -69,7 +69,7 @@ const MALE_SLIDES: OnboardingSlide[] = [
     title: 'Bouge avec ta vie !',
     content:
       "Entre le travail, les défis, la maison... le sport est souvent la première chose qu'on laisse tomber. Pas ici. MoHero s'adapte à ton rythme, pas l'inverse.",
-    image: require('@/assets/slide1.webp'),
+    image: require('@/assets/slide01-vh.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
@@ -77,7 +77,7 @@ const MALE_SLIDES: OnboardingSlide[] = [
     title: "L'héritage Mohero",
     content:
       "Avant les salles de sport et les programmes stricts, nos ancêtres bougeaient par instinct. Ils écoutaient leur corps, s'adaptaient à leur environnement.",
-    image: require('@/assets/slide2.webp'),
+    image: require('@/assets/slide02-vh.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
@@ -85,7 +85,7 @@ const MALE_SLIDES: OnboardingSlide[] = [
     title: 'Trace ta voie',
     content:
       "C'est cette voie simple, naturelle et puissante que MoHero t'invite à redécouvrir. Deviens le héros de ta vie et rejoins la tribu MoHero.",
-    image: require('@/assets/slide3.webp'),
+    image: require('@/assets/slide03-vh.webp'),
     background: 'rgba(0,0,0,0.7)'
   },
   {
@@ -93,7 +93,7 @@ const MALE_SLIDES: OnboardingSlide[] = [
     title: "L'initiation",
     content:
       "Tu es à la porte de la tribu. Le premier pas est le plus sacré. Laisse derrière toi le bruit du monde et écoute le rythme de tes ancêtres. Ton initiation commence maintenant.",
-    image: require('@/assets/slide4.webp'),
+    image: require('@/assets/slide04-vh.webp'),
     background: 'rgba(0,0,0,0.7)'
   }
 ];

@@ -216,13 +216,7 @@ export default function OnboardingTutorial({ visible, onComplete, onSkip }: Onbo
           </View>
 
           {/* Avatar du mentor - couche par-dessus (position absolute) */}
-          <View style={styles.mentorContainer}>
-            <Image 
-              source={require('@/assets/images/tutoriels/woman-didacticiel.png')} 
-              style={styles.mentorAvatar}
-              resizeMode="contain"
-            />
-          </View>
+          
         </View>
       </Animated.View>
     </View>
